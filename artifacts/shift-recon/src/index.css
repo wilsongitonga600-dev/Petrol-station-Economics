@@ -1,0 +1,95 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+:root {
+  --background: 222 17% 10%;
+  --foreground: 40 20% 93%;
+  --border: 222 20% 20%;
+  --input: 222 18% 15%;
+  --ring: 48 98% 50%;
+  --card: 222 19% 13%;
+  --card-foreground: 40 20% 93%;
+  --primary: 0 84% 53%;
+  --primary-foreground: 0 0% 100%;
+  --muted: 222 18% 15%;
+  --muted-foreground: 220 10% 55%;
+  --accent: 48 98% 50%;
+  --accent-foreground: 222 17% 10%;
+  --destructive: 0 84% 53%;
+  --destructive-foreground: 0 0% 100%;
+  --app-font-sans: system-ui, -apple-system, sans-serif;
+  --app-font-mono: 'SF Mono', Consolas, monospace;
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * { @apply border-border box-border; }
+  body { @apply bg-background text-foreground font-sans antialiased; }
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] { -moz-appearance: textfield; }
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(70vh) rotate(600deg); opacity: 0; }
+}
+
+@keyframes celebrate-pop {
+  0% { transform: translate(-50%, -10px) scale(0.85); opacity: 0; }
+  15% { transform: translate(-50%, 0) scale(1.03); opacity: 1; }
+  85% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -6px) scale(0.97); opacity: 0; }
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  border-radius: 2px;
+  animation: confetti-fall linear forwards;
+}
+
+.celebrate-banner {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  background: #0D0F15;
+  border: 1.5px solid #4FB0C6;
+  border-radius: 12px;
+  padding: 10px 20px;
+  color: #F2F0EB;
+  font-weight: 700;
+  font-size: 14.5px;
+  box-shadow: 0 4px 20px rgba(79,176,198,0.35);
+  animation: celebrate-pop 2s ease-in-out forwards;
+  white-space: nowrap;
+}
