@@ -502,9 +502,16 @@ export default function ShiftRecon() {
   };
 
   return (
-    <div style={{ background: "#12151D", minHeight: "100vh" }}>
+    <div style={{ background: "#12151D", minHeight: "100dvh" }}>
       <Confetti active={confetti} />
-      <div style={{ maxWidth: 560, margin: "0 auto", padding: "20px 16px 60px" }}>
+      <div style={{
+        width: "100%",
+        padding: "env(safe-area-inset-top, 16px) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 60px) env(safe-area-inset-left, 16px)",
+        paddingTop: "max(env(safe-area-inset-top), 20px)",
+        paddingBottom: "max(env(safe-area-inset-bottom), 60px)",
+        paddingLeft: "max(env(safe-area-inset-left), 16px)",
+        paddingRight: "max(env(safe-area-inset-right), 16px)",
+      }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
