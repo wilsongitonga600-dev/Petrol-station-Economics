@@ -233,34 +233,44 @@ function FuelCard({ fuel, entry, onChange }: FuelCardProps) {
       </div>
 
       {(["A", "B"] as const).map(side => (
-        <div key={side} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <span style={{ color: "#6B7280", fontSize: 12, width: 46, flexShrink: 0 }}>Side {side}</span>
-          <input
-            type="number" inputMode="decimal" placeholder="Opening"
-            value={entry[side].opening}
-            onChange={e => onChange(fuel.key, side, "opening", e.target.value)}
-            style={{
-              flex: 1, background: "#1C2028", border: "1px solid #333A48", color: "#F2F0EB",
-              borderRadius: 8, padding: "8px 10px", fontSize: 13.5, outline: "none",
-              fontFamily: "'SF Mono', Consolas, monospace", fontVariantNumeric: "tabular-nums",
-            }}
-          />
-          <input
-            type="number" inputMode="decimal" placeholder="Closing"
-            value={entry[side].closing}
-            onChange={e => onChange(fuel.key, side, "closing", e.target.value)}
-            style={{
-              flex: 1, background: "#1C2028", border: "1px solid #333A48", color: "#F2F0EB",
-              borderRadius: 8, padding: "8px 10px", fontSize: 13.5, outline: "none",
-              fontFamily: "'SF Mono', Consolas, monospace", fontVariantNumeric: "tabular-nums",
-            }}
-          />
-          <span style={{
-            color: "#8B92A0", fontSize: 12, width: 62, textAlign: "right", flexShrink: 0,
-            fontFamily: "'SF Mono', Consolas, monospace",
-          }}>
-            {litresFor(entry, side).toFixed(1)} L
-          </span>
+        <div key={side} style={{ marginBottom: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+            <span style={{ color: "#6B7280", fontSize: 12, fontWeight: 600 }}>Side {side}</span>
+            <span style={{
+              color: fuel.color, fontSize: 12, fontWeight: 700,
+              fontFamily: "'SF Mono', Consolas, monospace",
+            }}>
+              {litresFor(entry, side).toFixed(1)} L
+            </span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div>
+              <div style={{ color: "#5B616C", fontSize: 10.5, fontWeight: 500, marginBottom: 3 }}>OPENING</div>
+              <input
+                type="number" inputMode="decimal" placeholder="0.0"
+                value={entry[side].opening}
+                onChange={e => onChange(fuel.key, side, "opening", e.target.value)}
+                style={{
+                  width: "100%", background: "#1C2028", border: "1px solid #333A48", color: "#F2F0EB",
+                  borderRadius: 8, padding: "9px 10px", fontSize: 14, outline: "none",
+                  fontFamily: "'SF Mono', Consolas, monospace", fontVariantNumeric: "tabular-nums",
+                }}
+              />
+            </div>
+            <div>
+              <div style={{ color: "#5B616C", fontSize: 10.5, fontWeight: 500, marginBottom: 3 }}>CLOSING</div>
+              <input
+                type="number" inputMode="decimal" placeholder="0.0"
+                value={entry[side].closing}
+                onChange={e => onChange(fuel.key, side, "closing", e.target.value)}
+                style={{
+                  width: "100%", background: "#1C2028", border: "1px solid #333A48", color: "#F2F0EB",
+                  borderRadius: 8, padding: "9px 10px", fontSize: 14, outline: "none",
+                  fontFamily: "'SF Mono', Consolas, monospace", fontVariantNumeric: "tabular-nums",
+                }}
+              />
+            </div>
+          </div>
         </div>
       ))}
 
@@ -668,6 +678,20 @@ export default function ShiftRecon() {
             </div>
           )}
         </div>
+
+        {/* WG Watermark */}
+        <div style={{
+          marginTop: 32, textAlign: "center",
+          userSelect: "none", pointerEvents: "none",
+        }}>
+          <span style={{
+            fontSize: 11, color: "#2A2F3C", fontWeight: 700,
+            letterSpacing: "0.15em", textTransform: "uppercase",
+          }}>
+            © WG
+          </span>
+        </div>
+
       </div>
     </div>
   );
