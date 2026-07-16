@@ -41,7 +41,7 @@ export interface ShiftRecord {
 
 export const FUEL_TYPES = [
   { key: 'diesel' as FuelKey, label: 'Diesel',        code: 'DX', color: '#FDCC00' },
-  { key: 'vpower' as FuelKey, label: 'V-Power Diesel', code: 'VP', color: '#ED1C24' },
+  { key: 'vpower' as FuelKey, label: 'V-Power',        code: 'VP', color: '#ED1C24' },
   { key: 'petrol' as FuelKey, label: 'Unleaded',       code: 'UX', color: '#F5F1E8' },
 ] as const;
 
