@@ -16,7 +16,13 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "package": "com.wilsongitonga.shiftrecon",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#12151D"
+      }
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
