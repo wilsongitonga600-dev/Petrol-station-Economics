@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Manage Attendants — Shift Reconciliation</title>
+<style>
+  :root {
+    --bg: #12151D; --panel: #1B1F29; --panel-dark: #0D0F15; --border: #2A2F3C;
+    --text: #F2F0EB; --muted: #8B92A0; --muted2: #6B7280;
+    --shell-red: #ED1C24; --shell-yellow: #FDCC00; --teal: #4FB0C6; --green: #4FBE71;
+    --input-bg: #1C2028; --input-border: #333A48;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 20px; padding-bottom: 60px;
+  }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .topbar h1 { font-size: 18px; margin: 0; }
+  a.back { color: var(--muted); font-size: 12.5px; text-decoration: none; }
+  .card { background: var(--panel-dark); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .card h2 { font-size: 13px; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  input {
+    width: 100%; background: var(--input-bg); border: 1px solid var(--input-border);
+    border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 13.5px; margin-bottom: 10px;
+  }
+  button.primary {
+    width: 100%; background: var(--shell-red); color: #fff; border: none; border-radius: 8px;
+    padding: 11px; font-weight: 700; font-size: 13.5px; cursor: pointer;
+  }
+  .user-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .user-row:last-child { border-bottom: none; }
+  .user-row .name { font-size: 13.5px; font-weight: 600; }
+  .user-row .email { font-size: 11.5px; color: var(--muted); }
+  .status-pill { font-size: 10.5px; padding: 3px 8px; border-radius: 20px; font-weight: 700; }
+  .status-active { background: rgba(79,190,113,0.15); color: var(--green); }
+  .status-inactive { background: rgba(237,28,36,0.15); color: var(--shell-red); }
+  .toggle-btn {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; padding: 5px 10px; font-size: 11px; cursor: pointer; margin-left: 8px;
+  }
+  .msg { font-size: 12.5px; padding: 8px 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
+  .msg.ok { background: rgba(79,190,113,0.12); color: var(--green); display: block; }
+  .msg.err { background: rgba(237,28,36,0.12); color: #FF8A8F; display: block; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Manage Attendants</h1>
+  <a class="back" href="admin-dashboard.html">← Dashboard</a>
+</div>
+
+<div class="card">
+  <h2>Invite new attendant</h2>
+  <div class="msg" id="inviteMsg"></div>
+  <input type="text" id="newName" placeholder="Full name" />
+  <input type="email" id="newEmail" placeholder="Email address" />
+  <input type="password" id="newPassword" placeholder="Temporary password" />
+  <button class="primary" id="inviteBtn">Create account</button>
+</div>
+
+<div class="card">
+  <h2>All attendants</h2>
+  <div id="userList"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="auth-guard.js"></script>
+<script>
+  let currentProfile = null;
+
+  async function loadUsers() {
+    const { data: users } = await supabase.from('profiles').select('*').eq('role', 'attendant').order('full_name');
+    const listEl = document.getElementById('userList');
+    if (!users || users.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--muted2);font-size:13px;">No attendants yet — invite one above.</p>';
+      return;
+    }
+    listEl.innerHTML = users.map((u) => `
+      <div class="user-row">
+        <div>
+          <div class="name">${u.full_name}</div>
+          <div class="email">${u.email}</div>
+        </div>
+        <div>
+          <span class="status-pill ${u.active ? 'status-active' : 'status-inactive'}">${u.active ? 'Active' : 'Inactive'}</span>
+          <button class="toggle-btn" onclick="toggleActive('${u.id}', ${u.active})">${u.active ? 'Deactivate' : 'Reactivate'}</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function toggleActive(id, currentlyActive) {
+    await supabase.from('profiles').update({ active: !currentlyActive }).eq('id', id);
+    await logActivityLocal('attendant_status_changed', { target_id: id, active: !currentlyActive });
+    loadUsers();
+  }
+
+  async function logActivityLocal(action, details) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('activity_logs').insert({ user_id: user.id, action, details });
+  }
+
+  document.getElementById('inviteBtn').addEventListener('click', async () => {
+    const msgEl = document.getElementById('inviteMsg');
+    msgEl.className = 'msg';
+    const full_name = document.getElementById('newName').value.trim();
+    const email = document.getElementById('newEmail').value.trim();
+    const password = document.getElementById('newPassword').value;
+
+    if (!full_name || !email || !password) {
+      msgEl.textContent = 'Fill in all fields.';
+      msgEl.className = 'msg err';
+      return;
+    }
+
+    // Account creation must go through a server-side Edge Function —
+    // it's the only place holding the privileged service_role key.
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-attendant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ full_name, email, password }),
+    });
+    const result = await res.json();
+
+    if (!res.ok) {
+      msgEl.textContent = result.error || 'Could not create account.';
+      msgEl.className = 'msg err';
+      return;
+    }
+
+    msgEl.textContent = `Account created for ${full_name}.`;
+    msgEl.className = 'msg ok';
+    document.getElementById('newName').value = '';
+    document.getElementById('newEmail').value = '';
+    document.getElementById('newPassword').value = '';
+    loadUsers();
+  });
+
+  (async function init() {
+    currentProfile = await requireAuth('admin');
+    if (!currentProfile) return;
+    loadUsers();
+  })();
+</script>
+</body>
+</html>
