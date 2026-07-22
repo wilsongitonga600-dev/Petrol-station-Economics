@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>My Dashboard — Shift Reconciliation</title>
+<style>
+  :root {
+    --bg: #12151D; --panel: #1B1F29; --panel-dark: #0D0F15; --border: #2A2F3C;
+    --text: #F2F0EB; --muted: #8B92A0; --muted2: #6B7280;
+    --shell-red: #ED1C24; --shell-yellow: #FDCC00; --teal: #4FB0C6; --green: #4FBE71;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 20px; padding-bottom: 60px;
+  }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .welcome h1 { font-size: 18px; margin: 0 0 2px; }
+  .welcome p { margin: 0; color: var(--muted); font-size: 13px; }
+  .logout-btn {
+    background: var(--panel-dark); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer;
+  }
+  .cta {
+    display: block; text-align: center; background: var(--shell-red); color: #fff;
+    text-decoration: none; font-weight: 700; padding: 14px; border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(237,28,36,0.35); margin-bottom: 22px;
+  }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+  .stat-card { background: var(--panel-dark); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .stat-card .k { display: block; color: var(--muted); font-size: 11.5px; margin-bottom: 6px; }
+  .stat-card .v { font-size: 17px; font-weight: 700; font-family: 'SF Mono', Consolas, monospace; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin: 22px 0 10px; }
+  .shift-item {
+    background: var(--panel-dark); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  }
+  .shift-item .date { font-size: 13px; font-weight: 600; }
+  .shift-item .sales { font-size: 11.5px; color: var(--muted); font-family: monospace; }
+  .shift-item .variance { font-family: monospace; font-weight: 700; font-size: 13px; }
+  .empty { color: var(--muted2); font-size: 13px; text-align: center; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="welcome">
+    <h1 id="welcomeMsg">Welcome back</h1>
+    <p>Your shift dashboard</p>
+  </div>
+  <button class="logout-btn" onclick="logout()">Log out</button>
+</div>
+
+<a class="cta" href="reconciliation.html">＋ Start New Shift</a>
+
+<div class="section-title">This month</div>
+<div class="stat-grid">
+  <div class="stat-card"><span class="k">Shifts logged</span><span class="v" id="stCount">0</span></div>
+  <div class="stat-card"><span class="k">Total fuel sales</span><span class="v" id="stSales" style="color:var(--shell-yellow);">KES 0</span></div>
+  <div class="stat-card"><span class="k">Total short</span><span class="v" id="stShort" style="color:var(--shell-red);">KES 0</span></div>
+  <div class="stat-card"><span class="k">Total over</span><span class="v" id="stOver" style="color:var(--green);">KES 0</span></div>
+</div>
+
+<div class="section-title">Recent shifts</div>
+<div id="recentList"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="auth-guard.js"></script>
+<script src="shift-data.js"></script>
+<script>
+  (async function init() {
+    const profile = await requireAuth('attendant');
+    if (!profile) return;
+
+    document.getElementById('welcomeMsg').textContent = `Welcome back, ${profile.full_name.split(' ')[0]}`;
+
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const todayStr = now.toISOString().slice(0, 10);
+
+    const { data: monthShifts, error } = await loadMyShiftsInRange(monthStart, todayStr);
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const totalSales = monthShifts.reduce((s, r) => s + Number(r.total_fuel_sales), 0);
+    let totalShort = 0, totalOver = 0;
+    monthShifts.forEach((r) => {
+      const v = Number(r.variance);
+      if (v < -1) totalShort += Math.abs(v);
+      else if (v > 1) totalOver += v;
+    });
+
+    document.getElementById('stCount').textContent = monthShifts.length;
+    document.getElementById('stSales').textContent = `KES ${totalSales.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+    document.getElementById('stShort').textContent = `KES ${totalShort.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+    document.getElementById('stOver').textContent = `KES ${totalOver.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+
+    const { data: recent } = await loadMyShifts(10);
+    const listEl = document.getElementById('recentList');
+    if (!recent || recent.length === 0) {
+      listEl.innerHTML = '<p class="empty">No shifts logged yet — start your first one above.</p>';
+      return;
+    }
+    listEl.innerHTML = recent.map((r) => {
+      const v = Number(r.variance);
+      const color = Math.abs(v) < 1 ? 'var(--teal)' : v > 0 ? 'var(--green)' : 'var(--shell-red)';
+      return `<div class="shift-item">
+        <div>
+          <div class="date">${r.shift_date} · ${r.shift_name}</div>
+          <div class="sales">Sales KES ${Number(r.total_fuel_sales).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</div>
+        </div>
+        <div class="variance" style="color:${color};">${v >= 0 ? '+' : '\u2212'}${Math.abs(v).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</div>
+      </div>`;
+    }).join('');
+  })();
+</script>
+</body>
+</html>

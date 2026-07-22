@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Sign In — Shift Reconciliation</title>
+<style>
+  :root {
+    --bg: #12151D; --panel: #1B1F29; --panel-dark: #0D0F15;
+    --border: #2A2F3C; --input-bg: #1C2028; --input-border: #333A48;
+    --text: #F2F0EB; --muted: #8B92A0; --placeholder: #5B616C;
+    --shell-red: #ED1C24; --shell-yellow: #FDCC00;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px 28px;
+  }
+  .badge {
+    width: 52px; height: 52px; border-radius: 14px; background: var(--shell-red);
+    display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 16px;
+  }
+  h1 { text-align: center; font-size: 20px; margin: 0 0 4px; }
+  p.subtitle { text-align: center; color: var(--muted); font-size: 13px; margin: 0 0 28px; }
+  label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+  input[type="email"], input[type="password"] {
+    width: 100%; background: var(--input-bg); border: 1px solid var(--input-border);
+    border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 14px; margin-bottom: 16px;
+  }
+  input::placeholder { color: var(--placeholder); }
+  .remember-row { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .remember-row label { margin: 0; font-size: 13px; color: var(--text); }
+  button {
+    width: 100%; background: var(--shell-red); color: #fff; border: none;
+    border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(237,28,36,0.35);
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .error {
+    background: rgba(237,28,36,0.12); border: 1px solid rgba(237,28,36,0.4);
+    color: #FF8A8F; font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; display: none;
+  }
+  .footnote { text-align: center; color: var(--placeholder); font-size: 11.5px; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="badge">⛽</div>
+  <h1>Shift Reconciliation</h1>
+  <p class="subtitle">Sign in to continue</p>
+
+  <div class="error" id="errorBox"></div>
+
+  <form id="loginForm">
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="you@station.com" required autocomplete="username" />
+
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password" />
+
+    <div class="remember-row">
+      <input type="checkbox" id="rememberMe" checked />
+      <label for="rememberMe">Remember me on this device</label>
+    </div>
+
+    <button type="submit" id="submitBtn">Sign in</button>
+  </form>
+
+  <p class="footnote">Don't have an account? Ask your station manager to set one up for you.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script>
+  const form = document.getElementById('loginForm');
+  const errorBox = document.getElementById('errorBox');
+  const submitBtn = document.getElementById('submitBtn');
+
+  // If already logged in, skip straight to the right dashboard.
+  (async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      if (profile) {
+        window.location.href = profile.role === 'admin' ? 'admin-dashboard.html' : 'attendant-dashboard.html';
+      }
+    }
+  })();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBox.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in…';
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const rememberMe = document.getElementById('rememberMe').checked;
+    localStorage.setItem('sb-remember-me', rememberMe ? 'true' : 'false');
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      errorBox.textContent = error.message.includes('Invalid login')
+        ? 'Incorrect email or password.'
+        : error.message;
+      errorBox.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign in';
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, active')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError || !profile || !profile.active) {
+      await supabase.auth.signOut();
+      errorBox.textContent = 'This account is not active. Contact your manager.';
+      errorBox.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign in';
+      return;
+    }
+
+    window.location.href = profile.role === 'admin' ? 'admin-dashboard.html' : 'attendant-dashboard.html';
+  });
+</script>
+</body>
+</html>
