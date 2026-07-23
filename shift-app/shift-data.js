@@ -6,7 +6,7 @@
 // ============================================================
 
 async function saveShiftToServer(record, editingId) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await sb.auth.getUser();
   const payload = {
     user_id: user.id,
     shift_date: record.date,
@@ -19,9 +19,9 @@ async function saveShiftToServer(record, editingId) {
   };
 
   if (editingId) {
-    return supabase.from('shift_reconciliations').update(payload).eq('id', editingId).select().single();
+    return sb.from('shift_reconciliations').update(payload).eq('id', editingId).select().single();
   }
-  return supabase.from('shift_reconciliations').insert(payload).select().single();
+  return sb.from('shift_reconciliations').insert(payload).select().single();
 }
 
 async function loadMyShifts(limit = 200) {
@@ -42,11 +42,11 @@ async function loadMyShiftsInRange(fromDate, toDate) {
 }
 
 async function deleteShiftFromServer(id) {
-  return supabase.from('shift_reconciliations').delete().eq('id', id);
+  return sb.from('shift_reconciliations').delete().eq('id', id);
 }
 
 async function logActivity(action, details) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await sb.auth.getUser();
   if (!user) return;
-  await supabase.from('activity_logs').insert({ user_id: user.id, action, details: details || {} });
+  await sb.from('activity_logs').insert({ user_id: user.id, action, details: details || {} });
 }
