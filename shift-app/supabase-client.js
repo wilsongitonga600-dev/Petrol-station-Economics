@@ -5,7 +5,7 @@
 // permissions your RLS policies grant it. NEVER put the service_role key here.
 // ============================================================
 const SUPABASE_URL = 'https://qclavgtbcjecurghxetj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjbGF2Z3RiY2plY3VyZ2h4ZXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3ODQzNDksImV4cCI6MjEwMDM';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjbGF2Z3RiY2plY3VyZ2h4ZXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3ODQzNDksImV4cCI6MjEwMDM2MDM0OX0.dadNC4rrUz5VdLLpnhQIIowC-kkrCAU12pUpCjbaDqE';
 
 // "Remember me" support: session data is stored in localStorage (persists
 // after the browser closes) unless the user unchecks "remember me", in which
