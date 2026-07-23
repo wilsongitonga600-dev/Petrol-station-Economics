@@ -5,7 +5,7 @@
 // ============================================================
 
 async function requireAuth(requiredRole) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await sb.auth.getSession();
 
   if (!session) {
     window.location.href = 'login.html';
@@ -19,7 +19,7 @@ async function requireAuth(requiredRole) {
     .single();
 
   if (error || !profile || !profile.active) {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
     window.location.href = 'login.html';
     return null;
   }
@@ -35,6 +35,6 @@ async function requireAuth(requiredRole) {
 }
 
 async function logout() {
-  await supabase.auth.signOut();
+  await sb.auth.signOut();
   window.location.href = 'login.html';
 }
