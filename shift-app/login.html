@@ -99,40 +99,43 @@
     submitBtn.disabled = true;
     submitBtn.textContent = 'Signing in…';
 
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const rememberMe = document.getElementById('rememberMe').checked;
-    localStorage.setItem('sb-remember-me', rememberMe ? 'true' : 'false');
+    try {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const rememberMe = document.getElementById('rememberMe').checked;
+      localStorage.setItem('sb-remember-me', rememberMe ? 'true' : 'false');
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. Check your connection and try again.')), 15000)),
+      ]);
 
-    if (error) {
-      errorBox.textContent = error.message.includes('Invalid login')
-        ? 'Incorrect email or password.'
-        : error.message;
+      if (error) {
+        throw new Error(error.message.includes('Invalid login') ? 'Incorrect email or password.' : error.message);
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, active')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        throw new Error(`Signed in, but couldn't load your profile: ${profileError.message}`);
+      }
+      if (!profile || !profile.active) {
+        await supabase.auth.signOut();
+        throw new Error('This account is not active. Contact your manager.');
+      }
+
+      window.location.href = profile.role === 'admin' ? 'admin-dashboard.html' : 'attendant-dashboard.html';
+    } catch (err) {
+      errorBox.textContent = err.message || 'Something went wrong. Please try again.';
       errorBox.style.display = 'block';
       submitBtn.disabled = false;
       submitBtn.textContent = 'Sign in';
-      return;
     }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role, active')
-      .eq('id', data.user.id)
-      .single();
-
-    if (profileError || !profile || !profile.active) {
-      await supabase.auth.signOut();
-      errorBox.textContent = 'This account is not active. Contact your manager.';
-      errorBox.style.display = 'block';
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Sign in';
-      return;
-    }
-
-    window.location.href = profile.role === 'admin' ? 'admin-dashboard.html' : 'attendant-dashboard.html';
   });
 </script>
 </body>
-</html>
+  </html>
