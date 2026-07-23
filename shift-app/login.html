@@ -84,9 +84,9 @@
 
   // If already logged in, skip straight to the right dashboard.
   (async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await sb.auth.getSession();
     if (session) {
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      const { data: profile } = await sb.from('profiles').select('role').eq('id', session.user.id).single();
       if (profile) {
         window.location.href = profile.role === 'admin' ? 'admin-dashboard.html' : 'attendant-dashboard.html';
       }
@@ -100,7 +100,7 @@
     submitBtn.textContent = 'Signing in…';
 
     try {
-      if (!window.supabase || typeof supabase.auth === 'undefined') {
+      if (typeof sb === 'undefined' || !sb.auth) {
         throw new Error('Connection to the server didn\'t load properly. Please refresh the page and try again.');
       }
 
@@ -110,7 +110,7 @@
       localStorage.setItem('sb-remember-me', rememberMe ? 'true' : 'false');
 
       const { data, error } = await Promise.race([
-        supabase.auth.signInWithPassword({ email, password }),
+        sb.auth.signInWithPassword({ email, password }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. Check your connection and try again.')), 15000)),
       ]);
 
@@ -128,7 +128,7 @@
         throw new Error(`Signed in, but couldn't load your profile: ${profileError.message}`);
       }
       if (!profile || !profile.active) {
-        await supabase.auth.signOut();
+        await sb.auth.signOut();
         throw new Error('This account is not active. Contact your manager.');
       }
 
@@ -142,4 +142,4 @@
   });
 </script>
 </body>
-</html>
+  </html>
