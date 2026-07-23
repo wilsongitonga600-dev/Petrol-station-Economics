@@ -77,7 +77,7 @@
   let currentProfile = null;
 
   async function loadUsers() {
-    const { data: users } = await supabase.from('profiles').select('*').eq('role', 'attendant').order('full_name');
+    const { data: users } = await sb.from('profiles').select('*').eq('role', 'attendant').order('full_name');
     const listEl = document.getElementById('userList');
     if (!users || users.length === 0) {
       listEl.innerHTML = '<p style="color:var(--muted2);font-size:13px;">No attendants yet — invite one above.</p>';
@@ -98,15 +98,15 @@
   }
 
   async function toggleActive(id, currentlyActive) {
-    await supabase.from('profiles').update({ active: !currentlyActive }).eq('id', id);
+    await sb.from('profiles').update({ active: !currentlyActive }).eq('id', id);
     await logActivityLocal('attendant_status_changed', { target_id: id, active: !currentlyActive });
     loadUsers();
   }
 
   async function logActivityLocal(action, details) {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await sb.auth.getUser();
     if (!user) return;
-    await supabase.from('activity_logs').insert({ user_id: user.id, action, details });
+    await sb.from('activity_logs').insert({ user_id: user.id, action, details });
   }
 
   document.getElementById('inviteBtn').addEventListener('click', async () => {
@@ -124,7 +124,7 @@
 
     // Account creation must go through a server-side Edge Function —
     // it's the only place holding the privileged service_role key.
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await sb.auth.getSession();
     const res = await fetch(`${SUPABASE_URL}/functions/v1/create-attendant`, {
       method: 'POST',
       headers: {
@@ -156,4 +156,4 @@
   })();
 </script>
 </body>
-  </html>
+</html>
