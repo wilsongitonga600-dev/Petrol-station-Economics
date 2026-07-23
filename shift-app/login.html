@@ -76,7 +76,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-client.js"></script>
+<script src="supabase-client.js?v=2"></script>
 <script>
   const form = document.getElementById('loginForm');
   const errorBox = document.getElementById('errorBox');
@@ -100,6 +100,10 @@
     submitBtn.textContent = 'Signing in…';
 
     try {
+      if (!window.supabase || typeof supabase.auth === 'undefined') {
+        throw new Error('Connection to the server didn\'t load properly. Please refresh the page and try again.');
+      }
+
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
       const rememberMe = document.getElementById('rememberMe').checked;
@@ -138,4 +142,4 @@
   });
 </script>
 </body>
-  </html>
+</html>
