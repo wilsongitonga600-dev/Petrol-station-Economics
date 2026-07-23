@@ -82,7 +82,7 @@
     document.getElementById('adminName').textContent = `Signed in as ${profile.full_name}`;
 
     // Attendant counts
-    const { data: attendants } = await supabase.from('profiles').select('id, active').eq('role', 'attendant');
+    const { data: attendants } = await sb.from('profiles').select('id, active').eq('role', 'attendant');
     document.getElementById('stAttendants').textContent = attendants ? attendants.length : 0;
     document.getElementById('stActive').textContent = attendants ? attendants.filter((a) => a.active).length : 0;
 
@@ -146,4 +146,4 @@
   })();
 </script>
 </body>
-</html>
+                                                                    </html>
