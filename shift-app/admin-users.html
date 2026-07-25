@@ -111,6 +111,7 @@
 
   document.getElementById('inviteBtn').addEventListener('click', async () => {
     const msgEl = document.getElementById('inviteMsg');
+    const btn = document.getElementById('inviteBtn');
     msgEl.className = 'msg';
     const full_name = document.getElementById('newName').value.trim();
     const email = document.getElementById('newEmail').value.trim();
@@ -122,31 +123,50 @@
       return;
     }
 
-    // Account creation must go through a server-side Edge Function —
-    // it's the only place holding the privileged service_role key.
-    const { data: { session } } = await sb.auth.getSession();
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-attendant`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ full_name, email, password }),
-    });
-    const result = await res.json();
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
 
-    if (!res.ok) {
-      msgEl.textContent = result.error || 'Could not create account.';
+    try {
+      // Account creation must go through a server-side Edge Function —
+      // it's the only place holding the privileged service_role key.
+      const { data: { session } } = await sb.auth.getSession();
+
+      const res = await Promise.race([
+        fetch(`${SUPABASE_URL}/functions/v1/create-attendant`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ full_name, email, password }),
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. The Edge Function may not be deployed yet.')), 15000)),
+      ]);
+
+      let result;
+      try {
+        result = await res.json();
+      } catch (parseErr) {
+        throw new Error(`Server returned an unexpected response (status ${res.status}). The Edge Function may not be deployed yet.`);
+      }
+
+      if (!res.ok) {
+        throw new Error(result.error || `Could not create account (status ${res.status}).`);
+      }
+
+      msgEl.textContent = `Account created for ${full_name}.`;
+      msgEl.className = 'msg ok';
+      document.getElementById('newName').value = '';
+      document.getElementById('newEmail').value = '';
+      document.getElementById('newPassword').value = '';
+      loadUsers();
+    } catch (err) {
+      msgEl.textContent = err.message || 'Something went wrong.';
       msgEl.className = 'msg err';
-      return;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Create account';
     }
-
-    msgEl.textContent = `Account created for ${full_name}.`;
-    msgEl.className = 'msg ok';
-    document.getElementById('newName').value = '';
-    document.getElementById('newEmail').value = '';
-    document.getElementById('newPassword').value = '';
-    loadUsers();
   });
 
   (async function init() {
