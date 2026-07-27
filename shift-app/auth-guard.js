@@ -8,11 +8,11 @@ async function requireAuth(requiredRole) {
   const { data: { session } } = await sb.auth.getSession();
 
   if (!session) {
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
     return null;
   }
 
-  const { data: profile, error } = await supabase
+  const { data: profile, error } = await sb
     .from('profiles')
     .select('*')
     .eq('id', session.user.id)
@@ -20,7 +20,7 @@ async function requireAuth(requiredRole) {
 
   if (error || !profile || !profile.active) {
     await sb.auth.signOut();
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
     return null;
   }
 
@@ -36,5 +36,5 @@ async function requireAuth(requiredRole) {
 
 async function logout() {
   await sb.auth.signOut();
-  window.location.href = 'login.html';
-}
+  window.location.href = 'index.html';
+        }
