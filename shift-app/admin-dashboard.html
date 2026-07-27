@@ -91,7 +91,7 @@
     const todayStr = now.toISOString().slice(0, 10);
 
     // Month-wide shifts (RLS lets admin see all rows)
-    const { data: monthShifts } = await supabase
+    const { data: monthShifts } = await sb
       .from('shift_reconciliations')
       .select('*, profiles(full_name)')
       .gte('shift_date', monthStart)
