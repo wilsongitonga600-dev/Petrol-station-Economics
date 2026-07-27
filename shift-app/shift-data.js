@@ -25,7 +25,7 @@ async function saveShiftToServer(record, editingId) {
 }
 
 async function loadMyShifts(limit = 200) {
-  return supabase
+  return sb
     .from('shift_reconciliations')
     .select('*')
     .order('shift_date', { ascending: false })
@@ -33,7 +33,7 @@ async function loadMyShifts(limit = 200) {
 }
 
 async function loadMyShiftsInRange(fromDate, toDate) {
-  return supabase
+  return sb
     .from('shift_reconciliations')
     .select('*')
     .gte('shift_date', fromDate)
@@ -49,4 +49,5 @@ async function logActivity(action, details) {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return;
   await sb.from('activity_logs').insert({ user_id: user.id, action, details: details || {} });
-}
+                          }
+    
