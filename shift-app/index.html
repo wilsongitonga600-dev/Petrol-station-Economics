@@ -118,7 +118,7 @@
         throw new Error(error.message.includes('Invalid login') ? 'Incorrect email or password.' : error.message);
       }
 
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await sb
         .from('profiles')
         .select('role, active')
         .eq('id', data.user.id)
@@ -143,3 +143,4 @@
 </script>
 </body>
   </html>
+  
