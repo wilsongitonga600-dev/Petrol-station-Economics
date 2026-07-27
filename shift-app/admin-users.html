@@ -57,7 +57,7 @@
 </div>
 
 <div class="card">
-  <h2>Invite new attendant</h2>
+  <h2>Add new attendant</h2>
   <div class="msg" id="inviteMsg"></div>
   <input type="text" id="newName" placeholder="Full name" />
   <input type="email" id="newEmail" placeholder="Email address" />
@@ -80,7 +80,7 @@
     const { data: users } = await sb.from('profiles').select('*').eq('role', 'attendant').order('full_name');
     const listEl = document.getElementById('userList');
     if (!users || users.length === 0) {
-      listEl.innerHTML = '<p style="color:var(--muted2);font-size:13px;">No attendants yet — invite one above.</p>';
+      listEl.innerHTML = '<p style="color:var(--muted2);font-size:13px;">No attendants yet — add one above.</p>';
       return;
     }
     listEl.innerHTML = users.map((u) => `
@@ -176,4 +176,4 @@
   })();
 </script>
 </body>
-  </html>
+</html>
