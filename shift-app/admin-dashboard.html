@@ -33,6 +33,15 @@
   .stat-card .k { display: block; color: var(--muted); font-size: 11.5px; margin-bottom: 6px; }
   .stat-card .v { font-size: 17px; font-weight: 700; font-family: 'SF Mono', Consolas, monospace; }
   .section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin: 22px 0 10px; }
+  .range-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; row-gap: 8px; }
+  .range-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .range-picker { display: flex; align-items: center; gap: 6px; }
+  .range-picker input[type="date"] {
+    background: var(--panel-dark); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 8px; font-size: 12px; font-family: inherit;
+    color-scheme: dark; max-width: 124px;
+  }
+  .range-picker span { color: var(--muted); font-size: 11px; }
   .row-item {
     background: var(--panel-dark); border: 1px solid var(--border); border-radius: 10px;
     padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
@@ -57,16 +66,25 @@
   <a href="admin-users.html">👥 Manage attendants</a>
 </div>
 
+<div class="range-header">
+  <span class="range-title">Stats for</span>
+  <div class="range-picker">
+    <input type="date" id="statFromDate" />
+    <span>to</span>
+    <input type="date" id="statToDate" />
+  </div>
+</div>
+
 <div class="stat-grid">
   <div class="stat-card"><span class="k">Total attendants</span><span class="v" id="stAttendants">0</span></div>
   <div class="stat-card"><span class="k">Active users</span><span class="v" id="stActive" style="color:var(--teal);">0</span></div>
   <div class="stat-card"><span class="k">Today's shifts</span><span class="v" id="stTodayShifts">0</span></div>
-  <div class="stat-card"><span class="k">Monthly fuel sales</span><span class="v" id="stMonthSales" style="color:var(--shell-yellow);">KES 0</span></div>
-  <div class="stat-card"><span class="k">Station revenue (month)</span><span class="v" id="stRevenue" style="color:var(--green);">KES 0</span></div>
-  <div class="stat-card"><span class="k">Net variance (month)</span><span class="v" id="stNetVar">KES 0</span></div>
+  <div class="stat-card"><span class="k">Fuel sales</span><span class="v" id="stMonthSales" style="color:var(--shell-yellow);">KES 0</span></div>
+  <div class="stat-card"><span class="k">Station revenue</span><span class="v" id="stRevenue" style="color:var(--green);">KES 0</span></div>
+  <div class="stat-card"><span class="k">Net variance</span><span class="v" id="stNetVar">KES 0</span></div>
 </div>
 
-<div class="section-title">Fuel sold this month (litres)</div>
+<div class="section-title">Fuel sold (litres)</div>
 <div class="stat-grid" id="fuelLitresGrid">
   <div class="stat-card"><span class="k">Diesel</span><span class="v" id="stDieselL" style="color:var(--shell-yellow);">0 L</span></div>
   <div class="stat-card"><span class="k">V-Power</span><span class="v" id="stVpowerL" style="color:var(--shell-red);">0 L</span></div>
@@ -76,36 +94,51 @@
 <div class="section-title">Recent reconciliations (all attendants)</div>
 <div id="recentAll"></div>
 
-<div class="section-title">Top shortages this month</div>
+<div class="section-title">Top shortages in range</div>
 <div id="topShortages"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-client.js?v=2"></script>
 <script src="auth-guard.js?v=2"></script>
 <script>
-  (async function init() {
-    const profile = await requireAuth('admin');
-    if (!profile) return;
-    document.getElementById('adminName').textContent = `Signed in as ${profile.full_name}`;
+  let currentProfile = null;
 
-    // Attendant counts
-    const { data: attendants } = await sb.from('profiles').select('id, active').eq('role', 'attendant');
-    document.getElementById('stAttendants').textContent = attendants ? attendants.length : 0;
-    document.getElementById('stActive').textContent = attendants ? attendants.filter((a) => a.active).length : 0;
-
+  function todayLocalStr() {
     const now = new Date();
-    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
 
-    // Month-wide shifts (RLS lets admin see all rows)
-    const { data: monthShifts } = await sb
+  function n(v) { const f = parseFloat(v); return isNaN(f) ? 0 : f; }
+  function litresForShift(shift, key) {
+    const f = shift.fuels && shift.fuels[key];
+    if (!f) return 0;
+    const a = f.A || {}, b = f.B || {};
+    return (n(a.closing) - n(a.opening)) + (n(b.closing) - n(b.opening));
+  }
+
+  async function loadStats() {
+    const fromInput = document.getElementById('statFromDate');
+    const toInput = document.getElementById('statToDate');
+
+    if (!fromInput.value || !toInput.value) {
+      const now = new Date();
+      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      if (!fromInput.value) fromInput.value = monthStart;
+      if (!toInput.value) toInput.value = todayLocalStr();
+    }
+    let fromVal = fromInput.value;
+    let toVal = toInput.value;
+    if (fromVal > toVal) { [fromVal, toVal] = [toVal, fromVal]; fromInput.value = fromVal; toInput.value = toVal; }
+
+    const { data: rangeShifts } = await sb
       .from('shift_reconciliations')
       .select('*, profiles(full_name)')
-      .gte('shift_date', monthStart)
-      .lte('shift_date', todayStr)
+      .gte('shift_date', fromVal)
+      .lte('shift_date', toVal)
       .order('shift_date', { ascending: false });
 
-    const shifts = monthShifts || [];
+    const shifts = rangeShifts || [];
+    const todayStr = todayLocalStr();
     const todayCount = shifts.filter((s) => s.shift_date === todayStr).length;
     const totalSales = shifts.reduce((s, r) => s + Number(r.total_fuel_sales), 0);
     const totalMoney = shifts.reduce((s, r) => s + Number(r.total_money), 0);
@@ -118,14 +151,6 @@
     netEl.textContent = `${netVariance >= 0 ? '+' : '\u2212'}KES ${Math.abs(netVariance).toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
     netEl.style.color = Math.abs(netVariance) < 1 ? 'var(--teal)' : netVariance > 0 ? 'var(--green)' : 'var(--shell-red)';
 
-    // Litres sold per fuel grade
-    const n = (v) => { const f = parseFloat(v); return isNaN(f) ? 0 : f; };
-    const litresForShift = (shift, key) => {
-      const f = shift.fuels && shift.fuels[key];
-      if (!f) return 0;
-      const a = f.A || {}, b = f.B || {};
-      return (n(a.closing) - n(a.opening)) + (n(b.closing) - n(b.opening));
-    };
     const dieselL = shifts.reduce((s, r) => s + litresForShift(r, 'diesel'), 0);
     const vpowerL = shifts.reduce((s, r) => s + litresForShift(r, 'vpower'), 0);
     const unleadedL = shifts.reduce((s, r) => s + litresForShift(r, 'petrol'), 0);
@@ -133,11 +158,10 @@
     document.getElementById('stVpowerL').textContent = `${vpowerL.toLocaleString('en-KE', { maximumFractionDigits: 1 })} L`;
     document.getElementById('stUnleadedL').textContent = `${unleadedL.toLocaleString('en-KE', { maximumFractionDigits: 1 })} L`;
 
-    // Recent reconciliations, across everyone
     const recentEl = document.getElementById('recentAll');
     const recent = shifts.slice(0, 10);
     recentEl.innerHTML = recent.length === 0
-      ? '<p class="empty">No shifts logged this month yet.</p>'
+      ? '<p class="empty">No shifts logged in this range.</p>'
       : recent.map((r) => {
           const v = Number(r.variance);
           const color = Math.abs(v) < 1 ? 'var(--teal)' : v > 0 ? 'var(--green)' : 'var(--shell-red)';
@@ -150,14 +174,13 @@
           </div>`;
         }).join('');
 
-    // Top shortages
     const shortagesEl = document.getElementById('topShortages');
     const shortages = shifts
       .filter((r) => Number(r.variance) < -1)
       .sort((a, b) => Number(a.variance) - Number(b.variance))
       .slice(0, 5);
     shortagesEl.innerHTML = shortages.length === 0
-      ? '<p class="empty">No shortages this month. 🎉</p>'
+      ? '<p class="empty">No shortages in this range. 🎉</p>'
       : shortages.map((r) => `<div class="row-item">
           <div>
             <div class="primary">${r.profiles?.full_name || 'Unknown'}</div>
@@ -165,7 +188,21 @@
           </div>
           <div class="value" style="color:var(--shell-red);">\u2212KES ${Math.abs(Number(r.variance)).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</div>
         </div>`).join('');
+  }
+  document.getElementById('statFromDate').addEventListener('change', loadStats);
+  document.getElementById('statToDate').addEventListener('change', loadStats);
+
+  (async function init() {
+    currentProfile = await requireAuth('admin');
+    if (!currentProfile) return;
+    document.getElementById('adminName').textContent = `Signed in as ${currentProfile.full_name}`;
+
+    const { data: attendants } = await sb.from('profiles').select('id, active').eq('role', 'attendant');
+    document.getElementById('stAttendants').textContent = attendants ? attendants.length : 0;
+    document.getElementById('stActive').textContent = attendants ? attendants.filter((a) => a.active).length : 0;
+
+    await loadStats();
   })();
 </script>
 </body>
-                                                                    </html>
+      </html>
