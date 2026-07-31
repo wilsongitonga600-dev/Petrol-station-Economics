@@ -79,11 +79,13 @@
 
     const now = new Date();
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     const { data: monthShifts, error } = await loadMyShiftsInRange(monthStart, todayStr);
     if (error) {
       console.error(error);
+      document.getElementById('recentList').innerHTML =
+        `<p class="empty" style="color:#ED1C24;">Could not load your stats: ${error.message || 'unknown error'}</p>`;
       return;
     }
 
