@@ -66,6 +66,13 @@
   <div class="stat-card"><span class="k">Net variance (month)</span><span class="v" id="stNetVar">KES 0</span></div>
 </div>
 
+<div class="section-title">Fuel sold this month (litres)</div>
+<div class="stat-grid" id="fuelLitresGrid">
+  <div class="stat-card"><span class="k">Diesel</span><span class="v" id="stDieselL" style="color:var(--shell-yellow);">0 L</span></div>
+  <div class="stat-card"><span class="k">V-Power</span><span class="v" id="stVpowerL" style="color:var(--shell-red);">0 L</span></div>
+  <div class="stat-card" style="grid-column:1 / -1;"><span class="k">Unleaded</span><span class="v" id="stUnleadedL">0 L</span></div>
+</div>
+
 <div class="section-title">Recent reconciliations (all attendants)</div>
 <div id="recentAll"></div>
 
@@ -88,7 +95,7 @@
 
     const now = new Date();
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     // Month-wide shifts (RLS lets admin see all rows)
     const { data: monthShifts } = await sb
@@ -110,6 +117,21 @@
     const netEl = document.getElementById('stNetVar');
     netEl.textContent = `${netVariance >= 0 ? '+' : '\u2212'}KES ${Math.abs(netVariance).toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
     netEl.style.color = Math.abs(netVariance) < 1 ? 'var(--teal)' : netVariance > 0 ? 'var(--green)' : 'var(--shell-red)';
+
+    // Litres sold per fuel grade
+    const n = (v) => { const f = parseFloat(v); return isNaN(f) ? 0 : f; };
+    const litresForShift = (shift, key) => {
+      const f = shift.fuels && shift.fuels[key];
+      if (!f) return 0;
+      const a = f.A || {}, b = f.B || {};
+      return (n(a.closing) - n(a.opening)) + (n(b.closing) - n(b.opening));
+    };
+    const dieselL = shifts.reduce((s, r) => s + litresForShift(r, 'diesel'), 0);
+    const vpowerL = shifts.reduce((s, r) => s + litresForShift(r, 'vpower'), 0);
+    const unleadedL = shifts.reduce((s, r) => s + litresForShift(r, 'petrol'), 0);
+    document.getElementById('stDieselL').textContent = `${dieselL.toLocaleString('en-KE', { maximumFractionDigits: 1 })} L`;
+    document.getElementById('stVpowerL').textContent = `${vpowerL.toLocaleString('en-KE', { maximumFractionDigits: 1 })} L`;
+    document.getElementById('stUnleadedL').textContent = `${unleadedL.toLocaleString('en-KE', { maximumFractionDigits: 1 })} L`;
 
     // Recent reconciliations, across everyone
     const recentEl = document.getElementById('recentAll');
@@ -146,4 +168,4 @@
   })();
 </script>
 </body>
-</html>
+                                                                    </html>
