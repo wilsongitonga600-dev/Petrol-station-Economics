@@ -33,6 +33,15 @@
   .stat-card .k { display: block; color: var(--muted); font-size: 11.5px; margin-bottom: 6px; }
   .stat-card .v { font-size: 17px; font-weight: 700; font-family: 'SF Mono', Consolas, monospace; }
   .section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin: 22px 0 10px; }
+  .range-header { display: flex; align-items: center; justify-content: space-between; margin: 22px 0 10px; flex-wrap: wrap; row-gap: 8px; }
+  .range-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .range-picker { display: flex; align-items: center; gap: 6px; }
+  .range-picker input[type="date"] {
+    background: var(--panel-dark); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 8px; font-size: 12px; font-family: inherit;
+    color-scheme: dark; max-width: 124px;
+  }
+  .range-picker span { color: var(--muted); font-size: 11px; }
   .shift-item {
     background: var(--panel-dark); border: 1px solid var(--border); border-radius: 10px;
     padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
@@ -55,7 +64,14 @@
 
 <a class="cta" href="reconciliation.html">＋ Start New Shift</a>
 
-<div class="section-title">This month</div>
+<div class="range-header">
+  <span class="range-title">Stats for</span>
+  <div class="range-picker">
+    <input type="date" id="statFromDate" />
+    <span>to</span>
+    <input type="date" id="statToDate" />
+  </div>
+</div>
 <div class="stat-grid">
   <div class="stat-card"><span class="k">Shifts logged</span><span class="v" id="stCount">0</span></div>
   <div class="stat-card"><span class="k">Total fuel sales</span><span class="v" id="stSales" style="color:var(--shell-yellow);">KES 0</span></div>
@@ -71,17 +87,24 @@
 <script src="auth-guard.js?v=2"></script>
 <script src="shift-data.js?v=2"></script>
 <script>
-  (async function init() {
-    const profile = await requireAuth('attendant');
-    if (!profile) return;
+  let currentProfile = null;
 
-    document.getElementById('welcomeMsg').textContent = `Welcome back, ${profile.full_name.split(' ')[0]}`;
+  async function loadStats() {
+    const fromInput = document.getElementById('statFromDate');
+    const toInput = document.getElementById('statToDate');
 
-    const now = new Date();
-    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (!fromInput.value || !toInput.value) {
+      const now = new Date();
+      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (!fromInput.value) fromInput.value = monthStart;
+      if (!toInput.value) toInput.value = todayStr;
+    }
+    let fromVal = fromInput.value;
+    let toVal = toInput.value;
+    if (fromVal > toVal) { [fromVal, toVal] = [toVal, fromVal]; fromInput.value = fromVal; toInput.value = toVal; }
 
-    const { data: monthShifts, error } = await loadMyShiftsInRange(monthStart, todayStr);
+    const { data: rangeShifts, error } = await loadMyShiftsInRange(fromVal, toVal);
     if (error) {
       console.error(error);
       document.getElementById('recentList').innerHTML =
@@ -89,19 +112,23 @@
       return;
     }
 
-    const totalSales = monthShifts.reduce((s, r) => s + Number(r.total_fuel_sales), 0);
+    const totalSales = rangeShifts.reduce((s, r) => s + Number(r.total_fuel_sales), 0);
     let totalShort = 0, totalOver = 0;
-    monthShifts.forEach((r) => {
+    rangeShifts.forEach((r) => {
       const v = Number(r.variance);
       if (v < -1) totalShort += Math.abs(v);
       else if (v > 1) totalOver += v;
     });
 
-    document.getElementById('stCount').textContent = monthShifts.length;
+    document.getElementById('stCount').textContent = rangeShifts.length;
     document.getElementById('stSales').textContent = `KES ${totalSales.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
     document.getElementById('stShort').textContent = `KES ${totalShort.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
     document.getElementById('stOver').textContent = `KES ${totalOver.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+  }
+  document.getElementById('statFromDate').addEventListener('change', loadStats);
+  document.getElementById('statToDate').addEventListener('change', loadStats);
 
+  async function loadRecent() {
     const { data: recent } = await loadMyShifts(10);
     const listEl = document.getElementById('recentList');
     if (!recent || recent.length === 0) {
@@ -119,6 +146,16 @@
         <div class="variance" style="color:${color};">${v >= 0 ? '+' : '\u2212'}${Math.abs(v).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</div>
       </div>`;
     }).join('');
+  }
+
+  (async function init() {
+    currentProfile = await requireAuth('attendant');
+    if (!currentProfile) return;
+
+    document.getElementById('welcomeMsg').textContent = `Welcome back, ${currentProfile.full_name.split(' ')[0]}`;
+
+    await loadStats();
+    await loadRecent();
   })();
 </script>
 </body>
