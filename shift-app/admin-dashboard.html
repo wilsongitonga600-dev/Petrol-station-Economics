@@ -135,6 +135,7 @@
       .select('*, profiles(full_name)')
       .gte('shift_date', fromVal)
       .lte('shift_date', toVal)
+      .eq('is_checkpoint', false)
       .order('shift_date', { ascending: false });
 
     const shifts = rangeShifts || [];
@@ -205,4 +206,4 @@
   })();
 </script>
 </body>
-      </html>
+</html>
