@@ -16,6 +16,7 @@ async function saveShiftToServer(record, editingId) {
     total_fuel_sales: record.totalFuelSales,
     total_money: record.totalMoney,
     variance: record.variance,
+    is_checkpoint: !!record.isCheckpoint,
   };
 
   if (editingId) {
@@ -33,11 +34,14 @@ async function loadMyShifts(limit = 200) {
 }
 
 async function loadMyShiftsInRange(fromDate, toDate) {
+  // Excludes mid-shift checkpoints — this is used for dashboard stats,
+  // which should only ever reflect finalized shift totals.
   return sb
     .from('shift_reconciliations')
     .select('*')
     .gte('shift_date', fromDate)
     .lte('shift_date', toDate)
+    .eq('is_checkpoint', false)
     .order('shift_date', { ascending: false });
 }
 
@@ -49,5 +53,4 @@ async function logActivity(action, details) {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return;
   await sb.from('activity_logs').insert({ user_id: user.id, action, details: details || {} });
-                          }
-    
+    }
