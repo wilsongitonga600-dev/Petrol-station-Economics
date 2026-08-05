@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Lubes &amp; LPG Sales — Shift Reconciliation</title>
+<style>
+/* ============================================================
+   lubes-lpg.css
+   Styling for the Lubes & LPG Sales module.
+   Uses the exact same color palette, fonts, and card language as
+   the rest of the Shift Reconciliation app, so it feels native.
+   Custom classes are prefixed with "lb-" to avoid any collision
+   with styles from other pages if this file is ever combined
+   with others.
+   ============================================================ */
+
+:root {
+  --bg: #12151D;
+  --panel: #1B1F29;
+  --panel-dark: #0D0F15;
+  --border: #2A2F3C;
+  --input-bg: #1C2028;
+  --input-border: #333A48;
+  --text: #F2F0EB;
+  --muted: #8B92A0;
+  --muted2: #6B7280;
+  --placeholder: #5B616C;
+  --label: #B0B5BE;
+  --shell-red: #ED1C24;
+  --shell-yellow: #FDCC00;
+  --teal: #4FB0C6;
+  --green: #4FBE71;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--text);
+}
+
+.mono {
+  font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+.lb-field {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 14px;
+  width: 100%;
+  transition: border-color .15s;
+  font-family: inherit;
+}
+.lb-field:focus { outline: none; border-color: var(--shell-yellow); }
+.lb-field::placeholder { color: var(--placeholder); }
+
+#authLoading {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 14px;
+}
+
+.lb-wrap { max-width: 560px; margin: 0 auto; padding: 20px 16px 100px; display: none; }
+
+/* ---------- Header ---------- */
+.lb-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.lb-header-left { display: flex; align-items: center; gap: 10px; }
+.lb-header-badge {
+  background: var(--shell-red); border-radius: 10px; padding: 8px 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.lb-header h1 { color: var(--text); font-size: 19px; font-weight: 700; margin: 0; letter-spacing: -0.3px; }
+.lb-header .lb-subtitle { color: var(--muted2); font-size: 12px; margin: 0; }
+.lb-logout-btn {
+  background: var(--panel-dark); border: 1px solid var(--border); color: var(--muted);
+  border-radius: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; font-family: inherit;
+  flex-shrink: 0;
+}
+.lb-back-link {
+  display: inline-block; color: var(--muted); font-size: 12.5px; text-decoration: none;
+  margin: 10px 0 18px;
+}
+
+.lb-date-row { margin-bottom: 20px; }
+.lb-date-row label { color: var(--muted); font-size: 11.5px; display: block; margin-bottom: 5px; font-weight: 500; }
+
+/* ---------- Section titles ---------- */
+.lb-section-title {
+  display: flex; align-items: center; gap: 8px; margin: 26px 0 12px;
+  font-size: 14px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.lb-section-title .lb-icon { font-size: 17px; }
+
+/* ---------- Collapsible family / group cards ---------- */
+.lb-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  margin-bottom: 12px; overflow: hidden;
+}
+.lb-card-head {
+  width: 100%; background: transparent; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px; font-family: inherit; text-align: left;
+}
+.lb-card-head .lb-title-group { display: flex; align-items: center; gap: 10px; }
+.lb-dot { width: 10px; height: 10px; border-radius: 99px; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2); }
+.lb-card-head .lb-names { display: flex; flex-direction: column; }
+.lb-card-head .lb-fam-title { color: var(--text); font-weight: 700; font-size: 14.5px; }
+.lb-card-head .lb-fam-subtitle { color: var(--muted2); font-size: 11.5px; }
+.lb-card-head .lb-right { display: flex; align-items: center; gap: 10px; }
+.lb-card-head .lb-fam-total { font-size: 13px; font-weight: 700; color: var(--shell-yellow); }
+.lb-chevron { color: var(--muted); font-size: 13px; transition: transform .2s; }
+.lb-chevron.lb-open { transform: rotate(180deg); }
+
+.lb-card-body {
+  max-height: 0; overflow: hidden; transition: max-height .28s ease;
+  padding: 0 14px;
+}
+.lb-card-body.lb-open { padding: 0 14px 14px; }
+
+/* ---------- Product rows ---------- */
+.lb-row {
+  background: var(--panel-dark); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.lb-row:last-child { margin-bottom: 0; }
+.lb-row-name-line { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.lb-row-name { color: var(--text); font-size: 13.5px; font-weight: 600; }
+.lb-row-size { color: var(--muted2); font-size: 11.5px; margin-left: 4px; }
+.lb-row-total { font-size: 13.5px; font-weight: 700; color: var(--shell-yellow); }
+
+.lb-row-controls { display: flex; align-items: center; gap: 8px; }
+.lb-qty-group { display: flex; align-items: center; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.lb-qty-btn {
+  background: transparent; border: none; color: var(--text); font-size: 16px; font-weight: 700;
+  width: 32px; height: 34px; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center;
+}
+.lb-qty-btn:active { background: var(--border); }
+.lb-qty-input {
+  width: 40px; text-align: center; background: transparent; border: none; color: var(--text);
+  font-size: 13.5px; font-family: 'JetBrains Mono', monospace; padding: 0; height: 34px;
+}
+.lb-price-wrap { flex: 1; position: relative; }
+.lb-price-wrap .lb-price-prefix {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--muted2); font-size: 11.5px; pointer-events: none;
+}
+.lb-price-input {
+  width: 100%; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text);
+  border-radius: 8px; padding: 8px 10px 8px 34px; font-size: 13px; font-family: 'JetBrains Mono', monospace;
+}
+.lb-price-input:focus { outline: none; border-color: var(--shell-yellow); }
+
+/* ---------- Nested "hidden products" dropdown (5L / Large Packs) ---------- */
+.lb-hidden-toggle {
+  width: 100%; background: none; border: 1px dashed var(--border); border-radius: 8px;
+  color: var(--muted); font-size: 12px; padding: 9px; margin: 6px 0 10px; cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.lb-hidden-products { display: none; }
+.lb-hidden-products.lb-open { display: block; }
+
+/* ---------- Sub-groups inside "Other Fluids" ---------- */
+.lb-subgroup { margin-bottom: 16px; }
+.lb-subgroup:last-child { margin-bottom: 0; }
+.lb-subgroup-label { color: var(--label); font-size: 12px; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+/* ---------- Summary cards ---------- */
+.lb-summary { background: var(--panel-dark); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-top: 14px; }
+.lb-summary-title { color: var(--text); font-weight: 700; font-size: 13.5px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.lb-summary-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+.lb-summary-row:last-child { border-bottom: none; }
+.lb-summary-row .lb-k { color: var(--muted); font-size: 12.5px; }
+.lb-summary-row .lb-v { color: var(--text); font-size: 13.5px; font-weight: 600; }
+.lb-summary-row.lb-grand { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 12px; border-bottom: none; }
+.lb-summary-row.lb-grand .lb-k { color: var(--text); font-weight: 700; font-size: 13px; }
+.lb-summary-row.lb-grand .lb-v { color: var(--shell-yellow); font-size: 19px; font-weight: 700; }
+
+/* ---------- Final combined summary ---------- */
+.lb-final-summary {
+  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-dark) 100%);
+  border: 1px solid var(--shell-yellow); border-radius: 16px; padding: 20px; margin-top: 24px;
+}
+.lb-final-summary .lb-summary-title { color: var(--shell-yellow); font-size: 14.5px; }
+.lb-final-summary .lb-summary-row.lb-grand .lb-v { font-size: 24px; }
+
+.lb-save-btn {
+  width: 100%; margin-top: 16px;
+  background: var(--shell-red); color: #fff; border: none; border-radius: 10px;
+  padding: 14px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.3px;
+  display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(237,28,36,0.35); font-family: inherit;
+  transition: background .15s, box-shadow .15s;
+}
+
+/* ---------- Sticky running total bar ---------- */
+.lb-sticky-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  background: var(--panel-dark); border-top: 1px solid var(--border);
+  padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 -6px 20px rgba(0,0,0,0.35);
+}
+.lb-sticky-bar .lb-k { color: var(--muted); font-size: 11.5px; }
+.lb-sticky-bar .lb-v { color: var(--shell-yellow); font-size: 18px; font-weight: 700; }
+
+@media (min-width: 560px) {
+  .lb-sticky-bar { max-width: 560px; left: 50%; transform: translateX(-50%); border-radius: 14px 14px 0 0; }
+}
+
+</style>
+</head>
+<body>
+
+<div id="authLoading">Checking your session…</div>
+
+<div class="lb-wrap">
+
+  <div class="lb-header">
+    <div class="lb-header-left">
+      <div class="lb-header-badge">🛢️</div>
+      <div>
+        <h1>Lubes &amp; LPG Sales</h1>
+        <p class="lb-subtitle">Advance · Helix · Rimula · Afrigas</p>
+      </div>
+    </div>
+    <button class="lb-logout-btn" onclick="logout()">Log out</button>
+  </div>
+
+  <a class="lb-back-link" href="reconciliation.html">← Back to Reconciliation</a>
+
+  <div class="lb-date-row">
+    <label for="lbDate">Date</label>
+    <input type="date" id="lbDate" class="lb-field" />
+  </div>
+
+  <!-- ============================================================
+       LUBES SALES
+       Family cards are injected into #lubeFamiliesContainer by JS
+       from the LUBE_FAMILIES data array in lubes-lpg.js
+       ============================================================ -->
+  <div class="lb-section-title"><span class="lb-icon">🧴</span><span>Lubes Sales</span></div>
+  <div id="lubeFamiliesContainer"></div>
+  <div id="otherFluidsContainer"></div>
+
+  <div class="lb-summary" id="lubesSummary">
+    <div class="lb-summary-title">📋 Lubes Summary</div>
+    <div class="lb-summary-row"><span class="lb-k">Advance Total</span><span class="lb-v mono" id="sumAdvance">KES 0.00</span></div>
+    <div class="lb-summary-row"><span class="lb-k">Helix Total</span><span class="lb-v mono" id="sumHelix">KES 0.00</span></div>
+    <div class="lb-summary-row"><span class="lb-k">Rimula Total</span><span class="lb-v mono" id="sumRimula">KES 0.00</span></div>
+    <div class="lb-summary-row"><span class="lb-k">Other Fluids Total</span><span class="lb-v mono" id="sumOtherFluids">KES 0.00</span></div>
+    <div class="lb-summary-row lb-grand"><span class="lb-k">Grand Lubes Total</span><span class="lb-v mono" id="sumLubesGrand">KES 0.00</span></div>
+  </div>
+
+  <!-- ============================================================
+       LPG SALES
+       ============================================================ -->
+  <div class="lb-section-title"><span class="lb-icon">🔥</span><span>LPG Sales — Afrigas</span></div>
+  <div id="lpgProductsContainer"></div>
+  <div id="lpgAccessoriesContainer"></div>
+
+  <div class="lb-summary" id="lpgSummary">
+    <div class="lb-summary-title">📋 LPG Summary</div>
+    <div class="lb-summary-row"><span class="lb-k">13kg Total</span><span class="lb-v mono" id="sum13kg">KES 0.00</span></div>
+    <div class="lb-summary-row"><span class="lb-k">6kg Total</span><span class="lb-v mono" id="sum6kg">KES 0.00</span></div>
+    <div class="lb-summary-row"><span class="lb-k">Accessories Total</span><span class="lb-v mono" id="sumAccessories">KES 0.00</span></div>
+    <div class="lb-summary-row lb-grand"><span class="lb-k">Grand LPG Total</span><span class="lb-v mono" id="sumLpgGrand">KES 0.00</span></div>
+  </div>
+
+  <!-- ============================================================
+       FINAL COMBINED SUMMARY
+       ============================================================ -->
+  <div class="lb-final-summary" id="finalSummary">
+    <div class="lb-summary-title">🏁 Final Summary</div>
+    <div class="lb-summary-row"><span class="lb-k">Lubes Total</span><span class="lb-v mono" id="finalLubes">KES 0.00</span></div>
+    <div class="lb-summary-row"><span class="lb-k">LPG Total</span><span class="lb-v mono" id="finalLpg">KES 0.00</span></div>
+    <div class="lb-summary-row lb-grand"><span class="lb-k">Overall Merchandise Total</span><span class="lb-v mono" id="finalGrand">KES 0.00</span></div>
+
+    <button class="lb-save-btn" id="saveLubesBtn">💾 Save Totals</button>
+  </div>
+
+</div>
+
+<!-- Sticky running total, always visible while scrolling the product list -->
+<div class="lb-sticky-bar">
+  <span class="lb-k">Running Total</span>
+  <span class="lb-v mono" id="stickyGrandTotal">KES 0.00</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js?v=2"></script>
+<script src="auth-guard.js?v=2"></script>
+<script>
+  (async function () {
+    try {
+      if (typeof sb === 'undefined' || !sb.auth) {
+        throw new Error('Connection to the server didn\'t load properly. Please refresh the page and try again.');
+      }
+      const profile = await Promise.race([
+        requireAuth('attendant'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Session check timed out.')), 15000)),
+      ]);
+      if (!profile) return;
+      document.getElementById('authLoading').style.display = 'none';
+      document.querySelector('.lb-wrap').style.display = 'block';
+    } catch (err) {
+      document.getElementById('authLoading').textContent = err.message || 'Something went wrong loading this page.';
+      document.getElementById('authLoading').style.color = '#FF8A8F';
+    }
+  })();
+</script>
+
+<script>
+// ============================================================
+// lubes-lpg.js
+//
+// All product data lives in the arrays/objects below. To add,
+// rename, or reprice a product later, edit the data here — the
+// rendering and calculation functions are fully generic and
+// don't need to change.
+//
+// State (quantity + price per product) is kept in a single
+// `state` object keyed by product id, and mirrored into
+// localStorage so a half-filled page survives an accidental
+// refresh. Prices are plain numbers for now; wiring them to
+// Supabase later just means replacing PRODUCT_DEFAULTS with a
+// fetched price list before render() runs.
+// ============================================================
+
+// ---------- Lube family data ----------
+const LUBE_FAMILIES = [
+  {
+    code: 'advance',
+    title: 'Advance',
+    subtitle: 'Motorcycle Lubricants',
+    dotColor: 'var(--shell-red)',
+    products: [
+      { id: 'ax5_1l', name: 'AX5', size: '1L' },
+      { id: 'ax7_1l', name: 'AX7', size: '1L' },
+      { id: 'advance_ultra_4t_1l', name: 'Advance Ultra 4T', size: '1L' },
+      { id: 'sx2_2t_05l', name: 'SX2 2T', size: '0.5L' },
+    ],
+    hidden: null,
+  },
+  {
+    code: 'helix',
+    title: 'Helix',
+    subtitle: 'Passenger Vehicle Lubricants',
+    dotColor: 'var(--shell-yellow)',
+    products: [
+      { id: 'hx3_1l', name: 'HX3', size: '1L' },
+      { id: 'hx5_05l', name: 'HX5', size: '0.5L' },
+      { id: 'hx5_1l', name: 'HX5', size: '1L' },
+      { id: 'hx7_1l', name: 'HX7', size: '1L' },
+      { id: 'hx8_1l', name: 'HX8', size: '1L' },
+      { id: 'helix_ultra_1l', name: 'Helix Ultra', size: '1L' },
+    ],
+    hidden: {
+      label: 'Large Packs',
+      products: [
+        { id: 'helix_ultra_4l', name: 'Helix Ultra', size: '4L' },
+      ],
+    },
+  },
+  {
+    code: 'rimula',
+    title: 'Rimula',
+    subtitle: 'Diesel Lubricants',
+    dotColor: '#F5F1E8',
+    products: [
+      { id: 'r4x_1l', name: 'R4X', size: '1L' },
+      { id: 'r3t_1l', name: 'R3T', size: '1L' },
+      { id: 'r3x_1l', name: 'R3X', size: '1L' },
+      { id: 'r6_1l', name: 'R6', size: '1L' },
+    ],
+    hidden: {
+      label: 'Show 5L Products',
+      products: [
+        { id: 'r4x_5l', name: 'R4X', size: '5L' },
+        { id: 'r3t_5l', name: 'R3T', size: '5L' },
+        { id: 'r3x_5l', name: 'R3X', size: '5L' },
+        { id: 'r6_5l', name: 'R6', size: '5L' },
+      ],
+    },
+  },
+];
+
+// ---------- Other Automotive Fluids ----------
+const OTHER_FLUIDS = {
+  title: 'Other Automotive Fluids',
+  groups: [
+    {
+      name: 'Coolant',
+      visible: [{ id: 'coolant_1l', name: 'Coolant', size: '1L' }],
+      hidden: { label: '5L', products: [{ id: 'coolant_5l', name: 'Coolant', size: '5L' }] },
+    },
+    {
+      name: 'ATF',
+      visible: [
+        { id: 'atf_05l', name: 'ATF', size: '0.5L' },
+        { id: 'atf_1l', name: 'ATF', size: '1L' },
+      ],
+      hidden: { label: '5L', products: [{ id: 'atf_5l', name: 'ATF', size: '5L' }] },
+    },
+    {
+      name: 'Battery Water',
+      visible: [{ id: 'battery_water_1l', name: 'Battery Water', size: '1L' }],
+      hidden: null,
+    },
+    {
+      name: 'Brake Fluid',
+      visible: [
+        { id: 'brake_fluid_025l', name: 'Brake Fluid', size: '0.25L' },
+        { id: 'brake_fluid_05l', name: 'Brake Fluid', size: '0.5L' },
+      ],
+      hidden: null,
+    },
+  ],
+};
+
+// ---------- LPG products ----------
+const LPG_PRODUCTS = [
+  {
+    code: '13kg',
+    title: '13kg',
+    items: [
+      { id: 'lpg_13kg_refill', name: '13kg', size: 'Refill' },
+      { id: 'lpg_13kg_complete', name: '13kg', size: 'Complete (Cylinder + Gas)' },
+    ],
+  },
+  {
+    code: '6kg_screw',
+    title: '6kg Screw Type',
+    items: [
+      { id: 'lpg_6kg_screw_refill', name: '6kg Screw Type', size: 'Refill' },
+      { id: 'lpg_6kg_screw_complete', name: '6kg Screw Type', size: 'Complete (Cylinder + Gas)' },
+    ],
+  },
+  {
+    code: '6kg_jiko',
+    title: '6kg Super Jiko',
+    items: [
+      { id: 'lpg_6kg_jiko_refill', name: '6kg Super Jiko', size: 'Refill' },
+      { id: 'lpg_6kg_jiko_complete', name: '6kg Super Jiko', size: 'Complete (Cylinder + Gas)' },
+    ],
+  },
+];
+
+// ---------- LPG accessories ----------
+const LPG_ACCESSORIES = [
+  { id: 'acc_burner_6kg', name: 'Burners', size: '6kg' },
+  { id: 'acc_low_pressure_reg', name: 'Low Pressure Regulators', size: '' },
+  { id: 'acc_high_pressure_reg', name: 'High Pressure Regulators', size: '' },
+  { id: 'acc_screw_type_reg', name: 'Screw Type Regulators', size: '' },
+];
+
+// ---------- Runtime state: { [productId]: { qty, price } } ----------
+// All prices default to 0 and are editable inline. Later, this can
+// be pre-filled from a Supabase price list before render() runs.
+const state = {};
+
+function n(v) {
+  const f = parseFloat(v);
+  return isNaN(f) ? 0 : f;
+}
+
+function fmt(v) {
+  return v.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function ensureState(id) {
+  if (!state[id]) state[id] = { qty: 0, price: 0 };
+  return state[id];
+}
+
+// ============================================================
+// Rendering
+// ============================================================
+
+function renderProductRow(product) {
+  const s = ensureState(product.id);
+  const row = document.createElement('div');
+  row.className = 'lb-row';
+  row.innerHTML = `
+    <div class="lb-row-name-line">
+      <span><span class="lb-row-name">${product.name}</span><span class="lb-row-size">${product.size ? '(' + product.size + ')' : ''}</span></span>
+      <span class="lb-row-total mono" id="total_${product.id}">KES 0.00</span>
+    </div>
+    <div class="lb-row-controls">
+      <div class="lb-qty-group">
+        <button type="button" class="lb-qty-btn" data-action="dec" data-id="${product.id}">−</button>
+        <input type="number" inputmode="numeric" class="lb-qty-input mono" id="qty_${product.id}" value="0" min="0" />
+        <button type="button" class="lb-qty-btn" data-action="inc" data-id="${product.id}">+</button>
+      </div>
+      <div class="lb-price-wrap">
+        <span class="lb-price-prefix">KES</span>
+        <input type="number" inputmode="decimal" class="lb-price-input" id="price_${product.id}" placeholder="0.00" />
+      </div>
+    </div>
+  `;
+  return row;
+}
+
+function wireProductRow(product) {
+  const qtyInput = document.getElementById(`qty_${product.id}`);
+  const priceInput = document.getElementById(`price_${product.id}`);
+
+  qtyInput.addEventListener('input', () => {
+    ensureState(product.id).qty = Math.max(0, n(qtyInput.value));
+    calculateRow(product.id);
+  });
+  priceInput.addEventListener('input', () => {
+    ensureState(product.id).price = n(priceInput.value);
+    calculateRow(product.id);
+  });
+
+  // +/- buttons are delegated at the container level (see initButtonDelegation)
+}
+
+function renderCollapsibleFamily(container, family) {
+  const card = document.createElement('div');
+  card.className = 'lb-card';
+
+  const head = document.createElement('button');
+  head.type = 'button';
+  head.className = 'lb-card-head';
+  head.innerHTML = `
+    <span class="lb-title-group">
+      <span class="lb-dot" style="background:${family.dotColor};"></span>
+      <span class="lb-names">
+        <span class="lb-fam-title">${family.title}</span>
+        <span class="lb-fam-subtitle">${family.subtitle}</span>
+      </span>
+    </span>
+    <span class="lb-right">
+      <span class="lb-fam-total mono" id="famTotal_${family.code}">KES 0.00</span>
+      <span class="lb-chevron lb-open" id="chevron_${family.code}">▾</span>
+    </span>
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'lb-card-body lb-open';
+  body.id = `body_${family.code}`;
+
+  family.products.forEach((p) => body.appendChild(renderProductRow(p)));
+
+  if (family.hidden) {
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'lb-hidden-toggle';
+    toggle.innerHTML = `<span>${family.hidden.label}</span><span class="lb-chevron">▾</span>`;
+    const hiddenWrap = document.createElement('div');
+    hiddenWrap.className = 'lb-hidden-products';
+    family.hidden.products.forEach((p) => hiddenWrap.appendChild(renderProductRow(p)));
+
+    toggle.addEventListener('click', () => {
+      hiddenWrap.classList.toggle('lb-open');
+    });
+
+    body.appendChild(toggle);
+    body.appendChild(hiddenWrap);
+  }
+
+  head.addEventListener('click', () => {
+    body.classList.toggle('lb-open');
+    document.getElementById(`chevron_${family.code}`).classList.toggle('lb-open');
+  });
+
+  card.appendChild(head);
+  card.appendChild(body);
+  container.appendChild(card);
+
+  family.products.forEach(wireProductRow);
+  if (family.hidden) family.hidden.products.forEach(wireProductRow);
+}
+
+function renderOtherFluidsCard(container) {
+  const card = document.createElement('div');
+  card.className = 'lb-card';
+
+  const head = document.createElement('button');
+  head.type = 'button';
+  head.className = 'lb-card-head';
+  head.innerHTML = `
+    <span class="lb-title-group">
+      <span class="lb-names">
+        <span class="lb-fam-title">${OTHER_FLUIDS.title}</span>
+      </span>
+    </span>
+    <span class="lb-right">
+      <span class="lb-fam-total mono" id="famTotal_otherFluids">KES 0.00</span>
+      <span class="lb-chevron lb-open" id="chevron_otherFluids">▾</span>
+    </span>
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'lb-card-body lb-open';
+
+  OTHER_FLUIDS.groups.forEach((group) => {
+    const subgroup = document.createElement('div');
+    subgroup.className = 'lb-subgroup';
+    subgroup.innerHTML = `<div class="lb-subgroup-label">${group.name}</div>`;
+    group.visible.forEach((p) => subgroup.appendChild(renderProductRow(p)));
+
+    if (group.hidden) {
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'lb-hidden-toggle';
+      toggle.innerHTML = `<span>${group.hidden.label}</span><span class="lb-chevron">▾</span>`;
+      const hiddenWrap = document.createElement('div');
+      hiddenWrap.className = 'lb-hidden-products';
+      group.hidden.products.forEach((p) => hiddenWrap.appendChild(renderProductRow(p)));
+      toggle.addEventListener('click', () => hiddenWrap.classList.toggle('lb-open'));
+      subgroup.appendChild(toggle);
+      subgroup.appendChild(hiddenWrap);
+    }
+    body.appendChild(subgroup);
+  });
+
+  head.addEventListener('click', () => {
+    body.classList.toggle('lb-open');
+    document.getElementById('chevron_otherFluids').classList.toggle('lb-open');
+  });
+
+  card.appendChild(head);
+  card.appendChild(body);
+  container.appendChild(card);
+
+  OTHER_FLUIDS.groups.forEach((group) => {
+    group.visible.forEach(wireProductRow);
+    if (group.hidden) group.hidden.products.forEach(wireProductRow);
+  });
+}
+
+function renderLpgProducts(container) {
+  LPG_PRODUCTS.forEach((group) => {
+    const card = document.createElement('div');
+    card.className = 'lb-card';
+
+    const head = document.createElement('button');
+    head.type = 'button';
+    head.className = 'lb-card-head';
+    head.innerHTML = `
+      <span class="lb-title-group">
+        <span class="lb-names"><span class="lb-fam-title">${group.title}</span></span>
+      </span>
+      <span class="lb-right">
+        <span class="lb-fam-total mono" id="famTotal_${group.code}">KES 0.00</span>
+        <span class="lb-chevron lb-open" id="chevron_${group.code}">▾</span>
+      </span>
+    `;
+
+    const body = document.createElement('div');
+    body.className = 'lb-card-body lb-open';
+    group.items.forEach((p) => body.appendChild(renderProductRow(p)));
+
+    head.addEventListener('click', () => {
+      body.classList.toggle('lb-open');
+      document.getElementById(`chevron_${group.code}`).classList.toggle('lb-open');
+    });
+
+    card.appendChild(head);
+    card.appendChild(body);
+    container.appendChild(card);
+
+    group.items.forEach(wireProductRow);
+  });
+}
+
+function renderLpgAccessories(container) {
+  const card = document.createElement('div');
+  card.className = 'lb-card';
+
+  const head = document.createElement('button');
+  head.type = 'button';
+  head.className = 'lb-card-head';
+  head.innerHTML = `
+    <span class="lb-title-group">
+      <span class="lb-names"><span class="lb-fam-title">LPG Accessories</span></span>
+    </span>
+    <span class="lb-right">
+      <span class="lb-fam-total mono" id="famTotal_accessories">KES 0.00</span>
+      <span class="lb-chevron" id="chevron_accessories">▾</span>
+    </span>
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'lb-card-body';
+  body.id = 'body_accessories';
+  LPG_ACCESSORIES.forEach((p) => body.appendChild(renderProductRow(p)));
+
+  head.addEventListener('click', () => {
+    body.classList.toggle('lb-open');
+    document.getElementById('chevron_accessories').classList.toggle('lb-open');
+  });
+
+  card.appendChild(head);
+  card.appendChild(body);
+  container.appendChild(card);
+
+  LPG_ACCESSORIES.forEach(wireProductRow);
+}
+
+// ============================================================
+// Calculations
+// ============================================================
+
+function allLubeProducts(family) {
+  return family.hidden ? family.products.concat(family.hidden.products) : family.products;
+}
+
+function calculateRow(id) {
+  const s = ensureState(id);
+  const total = s.qty * s.price;
+  const el = document.getElementById(`total_${id}`);
+  if (el) el.textContent = `KES ${fmt(total)}`;
+  calculateAll();
+}
+
+function sumProductIds(ids) {
+  return ids.reduce((sum, id) => sum + ensureState(id).qty * ensureState(id).price, 0);
+}
+
+function calculateFamily(familyCode) {
+  const family = LUBE_FAMILIES.find((f) => f.code === familyCode);
+  if (!family) return 0;
+  const ids = allLubeProducts(family).map((p) => p.id);
+  const total = sumProductIds(ids);
+  const el = document.getElementById(`famTotal_${familyCode}`);
+  if (el) el.textContent = `KES ${fmt(total)}`;
+  return total;
+}
+
+function calculateOtherFluids() {
+  const ids = [];
+  OTHER_FLUIDS.groups.forEach((group) => {
+    group.visible.forEach((p) => ids.push(p.id));
+    if (group.hidden) group.hidden.products.forEach((p) => ids.push(p.id));
+  });
+  const total = sumProductIds(ids);
+  const el = document.getElementById('famTotal_otherFluids');
+  if (el) el.textContent = `KES ${fmt(total)}`;
+  return total;
+}
+
+function calculateLubes() {
+  const advance = calculateFamily('advance');
+  const helix = calculateFamily('helix');
+  const rimula = calculateFamily('rimula');
+  const other = calculateOtherFluids();
+  const grand = advance + helix + rimula + other;
+
+  document.getElementById('sumAdvance').textContent = `KES ${fmt(advance)}`;
+  document.getElementById('sumHelix').textContent = `KES ${fmt(helix)}`;
+  document.getElementById('sumRimula').textContent = `KES ${fmt(rimula)}`;
+  document.getElementById('sumOtherFluids').textContent = `KES ${fmt(other)}`;
+  document.getElementById('sumLubesGrand').textContent = `KES ${fmt(grand)}`;
+
+  return grand;
+}
+
+function calculateLpgGroup(code) {
+  const group = LPG_PRODUCTS.find((g) => g.code === code);
+  if (!group) return 0;
+  const total = sumProductIds(group.items.map((p) => p.id));
+  const el = document.getElementById(`famTotal_${code}`);
+  if (el) el.textContent = `KES ${fmt(total)}`;
+  return total;
+}
+
+function calculateLPG() {
+  const kg13 = calculateLpgGroup('13kg');
+  const kg6Screw = calculateLpgGroup('6kg_screw');
+  const kg6Jiko = calculateLpgGroup('6kg_jiko');
+  const kg6 = kg6Screw + kg6Jiko;
+
+  const accessories = sumProductIds(LPG_ACCESSORIES.map((p) => p.id));
+  const accEl = document.getElementById('famTotal_accessories');
+  if (accEl) accEl.textContent = `KES ${fmt(accessories)}`;
+
+  const grand = kg13 + kg6 + accessories;
+
+  document.getElementById('sum13kg').textContent = `KES ${fmt(kg13)}`;
+  document.getElementById('sum6kg').textContent = `KES ${fmt(kg6)}`;
+  document.getElementById('sumAccessories').textContent = `KES ${fmt(accessories)}`;
+  document.getElementById('sumLpgGrand').textContent = `KES ${fmt(grand)}`;
+
+  return grand;
+}
+
+function calculateGrandTotal() {
+  const lubes = calculateLubes();
+  const lpg = calculateLPG();
+  const grand = lubes + lpg;
+
+  document.getElementById('finalLubes').textContent = `KES ${fmt(lubes)}`;
+  document.getElementById('finalLpg').textContent = `KES ${fmt(lpg)}`;
+  document.getElementById('finalGrand').textContent = `KES ${fmt(grand)}`;
+  document.getElementById('stickyGrandTotal').textContent = `KES ${fmt(grand)}`;
+
+  return { lubes, lpg, grand };
+}
+
+function calculateAll() {
+  calculateGrandTotal();
+  saveDraftToLocalStorage();
+}
+
+// ============================================================
+// +/- quantity buttons (event delegation, since rows are
+// generated dynamically)
+// ============================================================
+function initButtonDelegation() {
+  document.body.addEventListener('click', (e) => {
+    const btn = e.target.closest('.lb-qty-btn');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    const input = document.getElementById(`qty_${id}`);
+    const s = ensureState(id);
+    s.qty = action === 'inc' ? s.qty + 1 : Math.max(0, s.qty - 1);
+    input.value = s.qty;
+    calculateRow(id);
+  });
+}
+
+// ============================================================
+// Draft persistence (localStorage) — keeps a half-filled page
+// safe across an accidental refresh. This is separate from the
+// "Save Totals" button, which is the deliberate export step.
+// ============================================================
+const DRAFT_KEY = 'lubes-lpg-draft';
+
+function saveDraftToLocalStorage() {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ date: document.getElementById('lbDate').value, state }));
+  } catch (e) { /* storage full or unavailable — non-critical */ }
+}
+
+function restoreDraftFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (draft.date) document.getElementById('lbDate').value = draft.date;
+    if (draft.state) {
+      Object.keys(draft.state).forEach((id) => {
+        state[id] = draft.state[id];
+        const qtyEl = document.getElementById(`qty_${id}`);
+        const priceEl = document.getElementById(`price_${id}`);
+        if (qtyEl) qtyEl.value = state[id].qty;
+        if (priceEl && state[id].price) priceEl.value = state[id].price;
+      });
+    }
+  } catch (e) { /* corrupt draft — ignore and start fresh */ }
+}
+
+// ============================================================
+// Export: send totals back toward the main reconciliation flow.
+//
+// Full Supabase integration is intentionally deferred (see the
+// project's architecture notes) — for now this writes a clearly
+// structured summary to localStorage under LATEST_KEY, ready to
+// be read from reconciliation.html in a future update.
+// ============================================================
+const LATEST_KEY = 'lubes-lpg-latest-totals';
+
+function saveTotals() {
+  const totals = calculateGrandTotal();
+  const payload = {
+    date: document.getElementById('lbDate').value,
+    lubesTotal: totals.lubes,
+    lpgTotal: totals.lpg,
+    grandTotal: totals.grand,
+    savedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(LATEST_KEY, JSON.stringify(payload));
+
+  const btn = document.getElementById('saveLubesBtn');
+  const original = btn.innerHTML;
+  btn.innerHTML = '✓ Totals saved';
+  btn.style.background = '#2E9E58';
+  setTimeout(() => {
+    btn.innerHTML = original;
+    btn.style.background = '';
+  }, 1800);
+}
+
+// ============================================================
+// Init
+// ============================================================
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function init() {
+  document.getElementById('lbDate').value = todayStr();
+
+  LUBE_FAMILIES.forEach((family) => renderCollapsibleFamily(document.getElementById('lubeFamiliesContainer'), family));
+  renderOtherFluidsCard(document.getElementById('otherFluidsContainer'));
+  renderLpgProducts(document.getElementById('lpgProductsContainer'));
+  renderLpgAccessories(document.getElementById('lpgAccessoriesContainer'));
+
+  initButtonDelegation();
+  restoreDraftFromLocalStorage();
+  calculateAll();
+
+  document.getElementById('saveLubesBtn').addEventListener('click', saveTotals);
+}
+
+// The auth-gate script (inline in lubes-lpg.html) reveals .lb-wrap
+// only after a successful login check. Since this script tag is
+// loaded after that inline script, DOMContentLoaded has already
+// fired by the time we get here, so we can init immediately.
+init();
+
+</script>
+
+</body>
+</html>
