@@ -75,6 +75,20 @@
   @media (max-width: 480px) {
     .cta-grid { grid-template-columns: 1fr; }
   }
+    #watermark {
+    position: fixed;
+    bottom: 14px;
+    right: 16px;
+    font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: rgba(242, 240, 235, 0.18);
+    pointer-events: none;
+    user-select: none;
+    z-index: 1;
+}
+  
 </style>
 </head>
 <body>
@@ -158,7 +172,9 @@
           <div class="sales">Sales KES ${Number(r.total_fuel_sales).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</div>
         </div>
         <div class="variance" style="color:${color};">${v >= 0 ? '+' : '\u2212'}${Math.abs(v).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</div>
-      </div>`;
+    
+</div>`;
+      <div id="watermark">Wilson Gitonga</div>
     }).join('');
   })();
 </script>
