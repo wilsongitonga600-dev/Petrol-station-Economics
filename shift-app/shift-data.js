@@ -33,7 +33,43 @@ async function loadMyShifts(limit = 200) {
     .limit(limit);
 }
 
-async function loadMyShiftsInRange(fromDate, toDate) {
+async function loadMyShiftsInRange(fromDate, toDate) 
+// Lubes & LPG Supabase functions
+async function loadLubesLpgShifts(limit = 200) {
+  return await sb.from('lubes_lpg_sales')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+}
+
+async function loadLubesLpgByDate(date) {
+  return await sb.from('lubes_lpg_sales')
+    .select('*')
+    .eq('date', date)
+    .maybeSingle();
+}
+
+async function saveLubesLpgShift(record, id) {
+  if (id) {
+    return await sb.from('lubes_lpg_sales')
+      .update(record)
+      .eq('id', id)
+      .select()
+      .single();
+  } else {
+    return await sb.from('lubes_lpg_sales')
+      .insert(record)
+      .select()
+      .single();
+  }
+}
+
+async function deleteLubesLpgShift(id) {
+  return await sb.from('lubes_lpg_sales')
+    .delete()
+    .eq('id', id);
+}
+{
   // Excludes mid-shift checkpoints — this is used for dashboard stats,
   // which should only ever reflect finalized shift totals.
   return sb
