@@ -340,15 +340,28 @@ input[type=number] { -moz-appearance: textfield; }
     <div class="lb-summary-row lb-grand"><span class="lb-k">Overall Merchandise Total</span><span class="lb-v mono" id="finalGrand">KES 0.00</span></div>
 
     <button class="lb-save-btn" id="saveLubesBtn">💾 Save Totals</button>
+ 
   </div>
-
+   <!-- Checkpoint checkbox -->
+<label class="lb-checkpoint-row">
+  <input type="checkbox" id="lbIsCheckpoint" />
+  <span>📍 This is a mid-shift checkpoint (not the final reconciliation)</span>
+</label>
 </div>
+   <!-- History toggle -->
+<button class="lb-history-toggle" id="lbHistoryToggle">
+  <span class="left">🕘 <span id="lbHistoryToggleText">Past entries (0)</span></span>
+  <span class="chevron" id="lbHistoryChevron">▾</span>
+</button>
+<div id="lbHistoryListWrap" style="display:none; margin-top:8px;"></div>
 
 <!-- Sticky running total, always visible while scrolling the product list -->
 <div class="lb-sticky-bar">
   <span class="lb-k">Running Total</span>
   <span class="lb-v mono" id="stickyGrandTotal">KES 0.00</span>
 </div>
+   <!-- Confetti container -->
+<div id="lbConfettiContainer"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-client.js?v=2"></script>
