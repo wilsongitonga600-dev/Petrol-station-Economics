@@ -54,7 +54,19 @@
   .shift-item .date { font-size: 13px; font-weight: 600; }
   .shift-item .sales { font-size: 11.5px; color: var(--muted); font-family: monospace; }
   .shift-item .variance { font-family: monospace; font-weight: 700; font-size: 13px; }
-  .empty { color: var(--muted2); font-size: 13px; text-align: center; padding: 20px 0; }
+  .empty { color: var(--muted2); font-size: 13px; text-align: center; padding: 20px 0; }  #watermark {
+    position: fixed;
+    bottom: 14px;
+    right: 16px;
+    font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: rgba(242, 240, 235, 0.18);
+    pointer-events: none;
+    user-select: none;
+    z-index: 1;
+  }
 </style>
 </head>
 <body>
@@ -164,5 +176,6 @@
     await loadRecent();
   })();
 </script>
+<div id="watermark">Wilson Gitonga</div>
 </body>
-</html>
+                                                            </html>
