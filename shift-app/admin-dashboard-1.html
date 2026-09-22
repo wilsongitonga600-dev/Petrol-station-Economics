@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Admin Dashboard — Shift Reconciliation</title>
+<style>
+  :root {
+    --bg: #12151D; --panel: #1B1F29; --panel-dark: #0D0F15; --border: #2A2F3C;
+    --text: #F2F0EB; --muted: #8B92A0; --muted2: #6B7280;
+    --shell-red: #ED1C24; --shell-yellow: #FDCC00; --teal: #4FB0C6; --green: #4FBE71;
+    --input-bg: #1C2028; --input-border: #333A48;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 20px; padding-bottom: 60px;
+  }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .topbar h1 { font-size: 18px; margin: 0 0 2px; }
+  .topbar p { margin: 0; color: var(--muted); font-size: 13px; }
+  .logout-btn {
+    background: var(--panel-dark); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer;
+  }
+  .nav-row { display: flex; gap: 8px; margin-bottom: 22px; }
+  .nav-row a {
+    flex: 1; text-align: center; background: var(--panel-dark); border: 1px solid var(--border);
+    color: var(--text); text-decoration: none; padding: 10px; border-radius: 10px; font-size: 12.5px; font-weight: 600;
+  }
+
+  /* Range picker */
+  .range-card { background: var(--panel-dark); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 18px; }
+  .range-presets { display: flex; gap: 6px; margin-bottom: 10px; }
+  .preset-btn {
+    flex: 1; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--muted);
+    border-radius: 8px; padding: 8px 4px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .preset-btn.active { background: var(--shell-red); border-color: var(--shell-red); color: #fff; }
+  .range-dates { display: flex; gap: 8px; align-items: center; }
+  .range-dates input {
+    flex: 1; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text);
+    border-radius: 8px; padding: 8px; font-size: 12.5px; color-scheme: dark;
+  }
+  .range-dates span { color: var(--muted2); font-size: 12px; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+  .stat-card { background: var(--panel-dark); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .stat-card .k { display: block; color: var(--muted); font-size: 11.5px; margin-bottom: 6px; }
+  .stat-card .v { font-size: 17px; font-weight: 700; font-family: 'SF Mono', Consolas, monospace; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin: 22px 0 10px; }
+  .row-item {
+    background: var(--panel-dark); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  }
+  .row-item .primary { font-size: 13px; font-weight: 600; }
+  .row-item .secondary { font-size: 11.5px; color: var(--muted); font-family: monospace; }
+  .row-item .value { font-family: monospace; font-weight: 700; font-size: 13px; }
+  .empty { color: var(--muted2); font-size: 13px; text-align: center; padding: 20px 0; }
+
+  .pdf-row { display: flex; gap: 8px; margin-top: 22px; }
+  .pdf-btn {
+    flex: 1; background: var(--panel-dark); border: 1px solid var(--teal); color: var(--teal);
+    border-radius: 10px; padding: 12px 8px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .pdf-btn:disabled { opacity: 0.5; cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Station Overview</h1>
+    <p id="adminName">Admin dashboard</p>
+  </div>
+  <button class="logout-btn" onclick="logout()">Log out</button>
+</div>
+
+<div class="nav-row">
+  <a href="admin-users.html">👥 Manage attendants</a>
+</div>
+
+<div class="range-card">
+  <div class="range-presets">
+    <button class="preset-btn active" id="presetWeek" onclick="setPreset('week')">This week</button>
+    <button class="preset-btn" id="presetMonth" onclick="setPreset('month')">This month</button>
+    <button class="preset-btn" id="presetCustom" onclick="setPreset('custom')">Custom</button>
+  </div>
+  <div class="range-dates">
+    <input type="date" id="rangeFrom" />
+    <span>to</span>
+    <input type="date" id="rangeTo" />
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card"><span class="k">Total attendants</span><span class="v" id="stAttendants">0</span></div>
+  <div class="stat-card"><span class="k">Active users</span><span class="v" id="stActive" style="color:var(--teal);">0</span></div>
+  <div class="stat-card"><span class="k">Shifts in range</span><span class="v" id="stRangeShifts">0</span></div>
+  <div class="stat-card"><span class="k">Fuel sales (range)</span><span class="v" id="stRangeSales" style="color:var(--shell-yellow);">KES 0</span></div>
+  <div class="stat-card"><span class="k">Money in (range)</span><span class="v" id="stRangeRevenue" style="color:var(--green);">KES 0</span></div>
+  <div class="stat-card"><span class="k">Net variance (range)</span><span class="v" id="stNetVar">KES 0</span></div>
+</div>
+
+<div class="section-title">Lubes &amp; LPG sales (range)</div>
+<div class="stat-grid">
+  <div class="stat-card"><span class="k">Lubes total</span><span class="v" id="stLubesTotal">KES 0</span></div>
+  <div class="stat-card"><span class="k">LPG total</span><span class="v" id="stLpgTotal">KES 0</span></div>
+  <div class="stat-card" style="grid-column:1/-1;"><span class="k">Grand total</span><span class="v" id="stLubesGrand" style="color:var(--shell-yellow);">KES 0</span></div>
+</div>
+
+<div class="pdf-row">
+  <button class="pdf-btn" id="downloadShiftPdf">📄 Shift report PDF</button>
+  <button class="pdf-btn" id="downloadLubesPdf">📄 Lubes/LPG report PDF</button>
+</div>
+
+<div class="section-title">Recent reconciliations (all attendants)</div>
+<div id="recentAll"></div>
+
+<div class="section-title">Top shortages in range</div>
+<div id="topShortages"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js?v=2"></script>
+<script src="auth-guard.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.12/jspdf.plugin.autotable.min.js"></script>
+<script src="pdf-reports.js"></script>
+<script>
+  let currentShiftRecords = [];
+  let currentLubesRecords = [];
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
+  function setPreset(kind) {
+    document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
+    const now = new Date();
+    let from, to;
+
+    if (kind === 'week') {
+      document.getElementById('presetWeek').classList.add('active');
+      const day = now.getDay(); // 0 = Sunday
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((day + 6) % 7));
+      from = monday;
+      to = now;
+    } else if (kind === 'month') {
+      document.getElementById('presetMonth').classList.add('active');
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      to = now;
+    } else {
+      document.getElementById('presetCustom').classList.add('active');
+      return; // leave whatever dates are currently in the inputs
+    }
+
+    document.getElementById('rangeFrom').value = toDateStr(from);
+    document.getElementById('rangeTo').value = toDateStr(to);
+    loadRangeData();
+  }
+
+  // Switch to "Custom" automatically if the person edits the dates by hand.
+  document.getElementById('rangeFrom').addEventListener('change', () => {
+    document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
+    document.getElementById('presetCustom').classList.add('active');
+    loadRangeData();
+  });
+  document.getElementById('rangeTo').addEventListener('change', () => {
+    document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('active'));
+    document.getElementById('presetCustom').classList.add('active');
+    loadRangeData();
+  });
+
+  async function loadRangeData() {
+    const fromDate = document.getElementById('rangeFrom').value;
+    const toDate = document.getElementById('rangeTo').value;
+    if (!fromDate || !toDate) return;
+
+    try {
+      // RLS lets admin see all rows across attendants, same pattern used
+      // for the existing shift query below.
+      const [{ data: shifts }, { data: lubes }] = await Promise.all([
+        sb.from('shift_reconciliations')
+          .select('*, profiles(full_name)')
+          .gte('shift_date', fromDate)
+          .lte('shift_date', toDate)
+          .order('shift_date', { ascending: false }),
+        sb.from('lubes_lpg_sales')
+          .select('*, profiles(full_name)')
+          .gte('sale_date', fromDate)
+          .lte('sale_date', toDate)
+          .order('sale_date', { ascending: false }),
+      ]);
+
+      currentShiftRecords = shifts || [];
+      currentLubesRecords = lubes || [];
+
+      renderShiftStats(currentShiftRecords, fromDate, toDate);
+      renderLubesStats(currentLubesRecords);
+    } catch (err) {
+      console.error('Failed to load range data:', err);
+    }
+  }
+
+  function renderShiftStats(allShifts, fromDate, toDate) {
+    const shifts = allShifts.filter((s) => !s.is_checkpoint);
+
+    document.getElementById('stRangeShifts').textContent = shifts.length;
+
+    const totalSales = shifts.reduce((s, r) => s + Number(r.total_fuel_sales), 0);
+    const totalMoney = shifts.reduce((s, r) => s + Number(r.total_money), 0);
+    const netVariance = totalMoney - totalSales;
+
+    document.getElementById('stRangeSales').textContent = `KES ${totalSales.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+    document.getElementById('stRangeRevenue').textContent = `KES ${totalMoney.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+    const netEl = document.getElementById('stNetVar');
+    netEl.textContent = `${netVariance >= 0 ? '+' : '\u2212'}KES ${Math.abs(netVariance).toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+    netEl.style.color = Math.abs(netVariance) < 1 ? 'var(--teal)' : netVariance > 0 ? 'var(--green)' : 'var(--shell-red)';
+
+    // Recent reconciliations, across everyone
+    const recentEl = document.getElementById('recentAll');
+    const recent = shifts.slice(0, 10);
+    recentEl.innerHTML = recent.length === 0
+      ? '<p class="empty">No shifts logged in this range.</p>'
+      : recent.map((r) => {
+          const v = Number(r.variance);
+          const color = Math.abs(v) < 1 ? 'var(--teal)' : v > 0 ? 'var(--green)' : 'var(--shell-red)';
+          return `<div class="row-item">
+            <div>
+              <div class="primary">${r.profiles?.full_name || 'Unknown'}</div>
+              <div class="secondary">${r.shift_date} · ${r.shift_name}</div>
+            </div>
+            <div class="value" style="color:${color};">${v >= 0 ? '+' : '\u2212'}KES ${Math.abs(v).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</div>
+          </div>`;
+        }).join('');
+
+    // Top shortages
+    const shortagesEl = document.getElementById('topShortages');
+    const shortages = shifts
+      .filter((r) => Number(r.variance) < -1)
+      .sort((a, b) => Number(a.variance) - Number(b.variance))
+      .slice(0, 5);
+    shortagesEl.innerHTML = shortages.length === 0
+      ? '<p class="empty">No shortages in this range. 🎉</p>'
+      : shortages.map((r) => `<div class="row-item">
+          <div>
+            <div class="primary">${r.profiles?.full_name || 'Unknown'}</div>
+            <div class="secondary">${r.shift_date} · ${r.shift_name}</div>
+          </div>
+          <div class="value" style="color:var(--shell-red);">\u2212KES ${Math.abs(Number(r.variance)).toLocaleString('en-KE', { maximumFractionDigits: 0 })}</div>
+        </div>`).join('');
+  }
+
+  function renderLubesStats(allLubes) {
+    const entries = allLubes.filter((r) => !r.is_checkpoint);
+    const lubesTotal = entries.reduce((s, r) => s + (Number(r.lubes_total) || 0), 0);
+    const lpgTotal = entries.reduce((s, r) => s + (Number(r.lpg_total) || 0), 0);
+    const grandTotal = entries.reduce((s, r) => s + (Number(r.grand_total) || 0), 0);
+
+    document.getElementById('stLubesTotal').textContent = `KES ${lubesTotal.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+    document.getElementById('stLpgTotal').textContent = `KES ${lpgTotal.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+    document.getElementById('stLubesGrand').textContent = `KES ${grandTotal.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`;
+  }
+
+  document.getElementById('downloadShiftPdf').addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    const fromDate = document.getElementById('rangeFrom').value;
+    const toDate = document.getElementById('rangeTo').value;
+    if (!fromDate || !toDate) return;
+    btn.disabled = true;
+    try {
+      generateShiftReportPDF(fromDate, toDate, currentShiftRecords);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert('Could not generate the PDF. Check your connection and try again.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('downloadLubesPdf').addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    const fromDate = document.getElementById('rangeFrom').value;
+    const toDate = document.getElementById('rangeTo').value;
+    if (!fromDate || !toDate) return;
+    btn.disabled = true;
+    try {
+      generateLubesReportPDF(fromDate, toDate, currentLubesRecords);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert('Could not generate the PDF. Check your connection and try again.');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  (async function init() {
+    try {
+      if (typeof sb === 'undefined' || !sb.auth) {
+        throw new Error("Connection to the server didn't load properly. Please refresh the page and try again.");
+      }
+
+      const profile = await requireAuth('admin');
+      if (!profile) return;
+      document.getElementById('adminName').textContent = `Signed in as ${profile.full_name}`;
+
+      // Attendant counts
+      const { data: attendants } = await sb.from('profiles').select('id, active').eq('role', 'attendant');
+      document.getElementById('stAttendants').textContent = attendants ? attendants.length : 0;
+      document.getElementById('stActive').textContent = attendants ? attendants.filter((a) => a.active).length : 0;
+
+      setPreset('week'); // also triggers the first loadRangeData()
+    } catch (err) {
+      console.error('Dashboard init failed:', err);
+      alert(err.message || 'Something went wrong loading the dashboard.');
+    }
+  })();
+</script>
+</body>
+  </html>
+  
