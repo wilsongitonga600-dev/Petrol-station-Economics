@@ -64,7 +64,7 @@ function generateShiftReportPDF(fromDate, toDate, records) {
     body: [
       ['Total fuel sales', KES(totalFuelSales)],
       ['Total money received', KES(totalMoney)],
-      ['Net variance', (totalVariance >= 0 ? '+' : '−') + KES(Math.abs(totalVariance))],
+      ['Net variance', (totalVariance >= 0 ? '+' : '-') + KES(Math.abs(totalVariance))],
       ['Finalized shifts', String(finalRecords.length)],
     ],
     margin: { left: 40, right: 40 },
@@ -109,7 +109,7 @@ function generateShiftReportPDF(fromDate, toDate, records) {
     head: [['Attendant', 'Shifts', 'Fuel sales', 'Money in', 'Variance']],
     body: Object.entries(byAttendant).map(([name, a]) => [
       name, String(a.shifts), KES(a.sales), KES(a.money),
-      (a.variance >= 0 ? '+' : '−') + KES(Math.abs(a.variance)),
+      (a.variance >= 0 ? '+' : '-') + KES(Math.abs(a.variance)),
     ]),
     margin: { left: 40, right: 40 },
     styles: { fontSize: 9 },
@@ -130,7 +130,7 @@ function generateShiftReportPDF(fromDate, toDate, records) {
       r.shift_name || '',
       KES(r.total_fuel_sales),
       KES(r.total_money),
-      (Number(r.variance) >= 0 ? '+' : '−') + KES(Math.abs(Number(r.variance))),
+      (Number(r.variance) >= 0 ? '+' : '-') + KES(Math.abs(Number(r.variance))),
     ]),
     margin: { left: 40, right: 40 },
     styles: { fontSize: 8 },
@@ -234,3 +234,4 @@ function generateLubesReportPDF(fromDate, toDate, records) {
 
   doc.save(`Lubes-LPG-Report_${fromDate}_to_${toDate}.pdf`);
 }
+  
