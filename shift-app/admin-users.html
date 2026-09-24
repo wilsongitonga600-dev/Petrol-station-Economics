@@ -46,7 +46,7 @@
     border-radius: 6px; padding: 5px 10px; font-size: 11px; cursor: pointer;
   }
   .toggle-btn.reset-btn { color: var(--teal); border-color: rgba(79,176,198,0.4); }
-  .msg { font-size: 12.5px; padding: 8px 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
+  .msg { font-size: 12.5px; padding: 8px 10px; border-radius: 8px; margin-bottom: 10px; display: none; word-break: break-word; }
   .msg.ok { background: rgba(79,190,113,0.12); color: var(--green); display: block; }
   .msg.err { background: rgba(237,28,36,0.12); color: #FF8A8F; display: block; }
 
@@ -103,43 +103,69 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="supabase-client.js"></script>
+<script src="supabase-client.js?v=2"></script>
 <script src="auth-guard.js"></script>
 <script>
   let currentProfile = null;
 
   async function loadUsers() {
-    const { data: users } = await supabase.from('profiles').select('*').eq('role', 'attendant').order('full_name');
+    const listMsg = document.getElementById('listMsg');
+    listMsg.style.display = 'none';
     const listEl = document.getElementById('userList');
-    if (!users || users.length === 0) {
-      listEl.innerHTML = '<p style="color:var(--muted2);font-size:13px;">No attendants yet — invite one above.</p>';
-      return;
+
+    try {
+      const { data: users, error } = await sb.from('profiles').select('*').eq('role', 'attendant').order('full_name');
+
+      if (error) {
+        listMsg.textContent = `Could not load attendants: ${error.message}`;
+        listMsg.className = 'msg err';
+        return;
+      }
+
+      if (!users || users.length === 0) {
+        listEl.innerHTML = '<p style="color:var(--muted2);font-size:13px;">No attendants yet — invite one above.</p>';
+        return;
+      }
+
+      listEl.innerHTML = users.map((u) => `
+        <div class="user-row">
+          <div>
+            <div class="name">${u.full_name}</div>
+            <div class="email">${u.email}</div>
+          </div>
+          <div class="actions">
+            <span class="status-pill ${u.active ? 'status-active' : 'status-inactive'}">${u.active ? 'Active' : 'Inactive'}</span>
+            <button class="toggle-btn reset-btn" onclick="resetPassword('${u.id}', '${u.full_name.replace(/'/g, "\\'")}')">Reset Password</button>
+            <button class="toggle-btn" onclick="toggleActive('${u.id}', ${u.active})">${u.active ? 'Deactivate' : 'Reactivate'}</button>
+          </div>
+        </div>
+      `).join('');
+    } catch (err) {
+      console.error('Failed to load attendants:', err);
+      listMsg.textContent = `Unexpected error: ${err.message || err}`;
+      listMsg.className = 'msg err';
     }
-    listEl.innerHTML = users.map((u) => `
-      <div class="user-row">
-        <div>
-          <div class="name">${u.full_name}</div>
-          <div class="email">${u.email}</div>
-        </div>
-        <div class="actions">
-          <span class="status-pill ${u.active ? 'status-active' : 'status-inactive'}">${u.active ? 'Active' : 'Inactive'}</span>
-          <button class="toggle-btn reset-btn" onclick="resetPassword('${u.id}', '${u.full_name.replace(/'/g, "\\'")}')">Reset Password</button>
-          <button class="toggle-btn" onclick="toggleActive('${u.id}', ${u.active})">${u.active ? 'Deactivate' : 'Reactivate'}</button>
-        </div>
-      </div>
-    `).join('');
   }
 
   async function toggleActive(id, currentlyActive) {
-    await supabase.from('profiles').update({ active: !currentlyActive }).eq('id', id);
-    await logActivityLocal('attendant_status_changed', { target_id: id, active: !currentlyActive });
-    loadUsers();
+    try {
+      await sb.from('profiles').update({ active: !currentlyActive }).eq('id', id);
+      await logActivityLocal('attendant_status_changed', { target_id: id, active: !currentlyActive });
+      loadUsers();
+    } catch (err) {
+      console.error('Failed to toggle status:', err);
+      alert(`Could not update status: ${err.message || err}`);
+    }
   }
 
   async function logActivityLocal(action, details) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from('activity_logs').insert({ user_id: user.id, action, details });
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return;
+      await sb.from('activity_logs').insert({ user_id: user.id, action, details });
+    } catch (err) {
+      console.error('Activity log failed (non-blocking):', err);
+    }
   }
 
   function generateTempPassword() {
@@ -154,35 +180,42 @@
   async function resetPassword(id, name) {
     const listMsg = document.getElementById('listMsg');
     listMsg.className = 'msg';
+    listMsg.style.display = 'none';
 
     if (!confirm(`Generate a new temporary password for ${name}? Their current password will stop working immediately.`)) {
       return;
     }
 
-    const newPassword = generateTempPassword();
-    const { data: { session } } = await supabase.auth.getSession();
+    try {
+      const newPassword = generateTempPassword();
+      const { data: { session } } = await sb.auth.getSession();
 
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/reset-attendant-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ user_id: id, new_password: newPassword }),
-    });
-    const result = await res.json();
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/reset-attendant-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ user_id: id, new_password: newPassword }),
+      });
+      const result = await res.json();
 
-    if (!res.ok) {
-      listMsg.textContent = result.error || 'Could not reset password.';
+      if (!res.ok) {
+        listMsg.textContent = result.error || 'Could not reset password.';
+        listMsg.className = 'msg err';
+        return;
+      }
+
+      await logActivityLocal('attendant_password_reset', { target_id: id });
+
+      document.getElementById('resetModalName').textContent = `For ${name}:`;
+      document.getElementById('resetModalPassword').textContent = newPassword;
+      document.getElementById('resetOverlay').classList.add('show');
+    } catch (err) {
+      console.error('Reset password failed:', err);
+      listMsg.textContent = `Unexpected error: ${err.message || err}`;
       listMsg.className = 'msg err';
-      return;
     }
-
-    await logActivityLocal('attendant_password_reset', { target_id: id });
-
-    document.getElementById('resetModalName').textContent = `For ${name}:`;
-    document.getElementById('resetModalPassword').textContent = newPassword;
-    document.getElementById('resetOverlay').classList.add('show');
   }
 
   document.getElementById('resetModalClose').addEventListener('click', () => {
@@ -193,6 +226,8 @@
   document.getElementById('inviteBtn').addEventListener('click', async () => {
     const msgEl = document.getElementById('inviteMsg');
     msgEl.className = 'msg';
+    msgEl.style.display = 'none';
+
     const full_name = document.getElementById('newName').value.trim();
     const email = document.getElementById('newEmail').value.trim();
     const password = document.getElementById('newPassword').value;
@@ -203,37 +238,51 @@
       return;
     }
 
-    // Account creation must go through a server-side Edge Function —
-    // it's the only place holding the privileged service_role key.
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-attendant`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ full_name, email, password }),
-    });
-    const result = await res.json();
+    try {
+      // Account creation must go through a server-side Edge Function —
+      // it's the only place holding the privileged service_role key.
+      const { data: { session } } = await sb.auth.getSession();
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/create-attendant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ full_name, email, password }),
+      });
+      const result = await res.json();
 
-    if (!res.ok) {
-      msgEl.textContent = result.error || 'Could not create account.';
+      if (!res.ok) {
+        msgEl.textContent = result.error || 'Could not create account.';
+        msgEl.className = 'msg err';
+        return;
+      }
+
+      msgEl.textContent = `Account created for ${full_name}.`;
+      msgEl.className = 'msg ok';
+      document.getElementById('newName').value = '';
+      document.getElementById('newEmail').value = '';
+      document.getElementById('newPassword').value = '';
+      loadUsers();
+    } catch (err) {
+      console.error('Create account failed:', err);
+      msgEl.textContent = `Unexpected error: ${err.message || err}`;
       msgEl.className = 'msg err';
-      return;
     }
-
-    msgEl.textContent = `Account created for ${full_name}.`;
-    msgEl.className = 'msg ok';
-    document.getElementById('newName').value = '';
-    document.getElementById('newEmail').value = '';
-    document.getElementById('newPassword').value = '';
-    loadUsers();
   });
 
   (async function init() {
-    currentProfile = await requireAuth('admin');
-    if (!currentProfile) return;
-    loadUsers();
+    try {
+      if (typeof sb === 'undefined' || !sb.auth) {
+        throw new Error("Connection to the server didn't load properly. Please refresh the page and try again.");
+      }
+      currentProfile = await requireAuth('admin');
+      if (!currentProfile) return;
+      loadUsers();
+    } catch (err) {
+      console.error('Init failed:', err);
+      alert(err.message || 'Something went wrong loading this page.');
+    }
   })();
 </script>
 </body>
