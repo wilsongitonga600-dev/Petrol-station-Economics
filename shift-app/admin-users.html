@@ -94,11 +94,15 @@
 
 <div class="overlay" id="resetOverlay">
   <div class="modal">
-    <h3>New temporary password</h3>
+    <h3>Reset password</h3>
     <p id="resetModalName"></p>
-    <div class="temp-pw" id="resetModalPassword"></div>
-    <p>Share this with them directly — it won't be shown again.</p>
-    <button class="primary" id="resetModalClose">Done</button>
+    <input type="text" id="resetPasswordInput" placeholder="New password (min 6 characters)" autocomplete="off" />
+    <button class="toggle-btn" id="resetGenerateBtn" style="width:100%; margin-bottom:10px; padding:8px;">🎲 Generate random password</button>
+    <div class="msg" id="resetModalMsg"></div>
+    <div style="display:flex; gap:8px;">
+      <button class="toggle-btn" id="resetModalCancel" style="flex:1; padding:11px;">Cancel</button>
+      <button class="primary" id="resetModalConfirm" style="flex:1;">Set password</button>
+    </div>
   </div>
 </div>
 
@@ -177,17 +181,48 @@
     return pw;
   }
 
-  async function resetPassword(id, name) {
-    const listMsg = document.getElementById('listMsg');
-    listMsg.className = 'msg';
-    listMsg.style.display = 'none';
+  let resetTargetId = null;
+  let resetTargetName = null;
 
-    if (!confirm(`Generate a new temporary password for ${name}? Their current password will stop working immediately.`)) {
+  function resetPassword(id, name) {
+    resetTargetId = id;
+    resetTargetName = name;
+    document.getElementById('resetModalName').textContent = `For ${name}. They'll need to use this exact password next time they sign in.`;
+    document.getElementById('resetPasswordInput').value = '';
+    document.getElementById('resetModalMsg').style.display = 'none';
+    document.getElementById('resetOverlay').classList.add('show');
+    document.getElementById('resetPasswordInput').focus();
+  }
+
+  function closeResetModal() {
+    document.getElementById('resetOverlay').classList.remove('show');
+    document.getElementById('resetPasswordInput').value = '';
+    resetTargetId = null;
+    resetTargetName = null;
+  }
+
+  document.getElementById('resetGenerateBtn').addEventListener('click', () => {
+    document.getElementById('resetPasswordInput').value = generateTempPassword();
+  });
+
+  document.getElementById('resetModalCancel').addEventListener('click', closeResetModal);
+
+  document.getElementById('resetModalConfirm').addEventListener('click', async () => {
+    const modalMsg = document.getElementById('resetModalMsg');
+    const confirmBtn = document.getElementById('resetModalConfirm');
+    const newPassword = document.getElementById('resetPasswordInput').value;
+
+    if (!newPassword || newPassword.length < 6) {
+      modalMsg.textContent = 'Password must be at least 6 characters.';
+      modalMsg.className = 'msg err';
+      modalMsg.style.display = 'block';
       return;
     }
 
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Saving…';
+
     try {
-      const newPassword = generateTempPassword();
       const { data: { session } } = await sb.auth.getSession();
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/reset-attendant-password`, {
@@ -196,31 +231,32 @@
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ user_id: id, new_password: newPassword }),
+        body: JSON.stringify({ user_id: resetTargetId, new_password: newPassword }),
       });
       const result = await res.json();
 
       if (!res.ok) {
-        listMsg.textContent = result.error || 'Could not reset password.';
-        listMsg.className = 'msg err';
+        modalMsg.textContent = result.error || 'Could not reset password.';
+        modalMsg.className = 'msg err';
+        modalMsg.style.display = 'block';
         return;
       }
 
-      await logActivityLocal('attendant_password_reset', { target_id: id });
+      await logActivityLocal('attendant_password_reset', { target_id: resetTargetId });
 
-      document.getElementById('resetModalName').textContent = `For ${name}:`;
-      document.getElementById('resetModalPassword').textContent = newPassword;
-      document.getElementById('resetOverlay').classList.add('show');
+      modalMsg.textContent = `Password updated for ${resetTargetName}.`;
+      modalMsg.className = 'msg ok';
+      modalMsg.style.display = 'block';
+      setTimeout(closeResetModal, 1400);
     } catch (err) {
       console.error('Reset password failed:', err);
-      listMsg.textContent = `Unexpected error: ${err.message || err}`;
-      listMsg.className = 'msg err';
+      modalMsg.textContent = `Unexpected error: ${err.message || err}`;
+      modalMsg.className = 'msg err';
+      modalMsg.style.display = 'block';
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Set password';
     }
-  }
-
-  document.getElementById('resetModalClose').addEventListener('click', () => {
-    document.getElementById('resetOverlay').classList.remove('show');
-    document.getElementById('resetModalPassword').textContent = '';
   });
 
   document.getElementById('inviteBtn').addEventListener('click', async () => {
